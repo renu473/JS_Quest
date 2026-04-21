@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JS Quest — Learn JavaScript Interactively</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- ===== AUDIO ELEMENTS ===== -->
+<audio id="snd-click" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+<audio id="snd-success" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
+<audio id="snd-wrong" src="https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3" preload="auto"></audio>
+<audio id="snd-complete" src="https://assets.mixkit.co/active_storage/sfx/1436/1436-preview.mp3" preload="auto"></audio>
+
+<!-- ===== PARTICLES CANVAS ===== -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- ===== NAV ===== -->
+<nav class="navbar" id="navbar">
+  <div class="nav-brand">
+    <span class="brand-icon">⚡</span>
+    <span class="brand-text">JS<span class="brand-accent">Quest</span></span>
+  </div>
+  <ul class="nav-links" id="nav-links">
+    <li><a href="#" class="nav-link active" data-section="home"><span class="nav-icon">🏠</span>Home</a></li>
+    <li><a href="#" class="nav-link" data-section="learn"><span class="nav-icon">📚</span>Learn</a></li>
+    <li><a href="#" class="nav-link" data-section="practice"><span class="nav-icon">💻</span>Practice</a></li>
+    <li><a href="#" class="nav-link" data-section="games"><span class="nav-icon">🎮</span>Games</a></li>
+    <li><a href="#" class="nav-link" data-section="quiz"><span class="nav-icon">🧠</span>Quiz</a></li>
+  </ul>
+  <div class="nav-controls">
+    <div class="xp-badge" id="nav-xp">⚡ <span id="xp-count">0</span> XP</div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
+    <button class="hamburger" id="hamburger">☰</button>
+  </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main id="app">
+
+  <!-- ===== HOME SECTION ===== -->
+  <section id="home" class="section active">
+    <div class="hero">
+      <div class="hero-content">
+        <div class="hero-badge">🚀 Start Your JS Journey</div>
+        <h1 class="hero-title">
+          Master <span class="gradient-text">JavaScript</span><br/>
+          The Fun Way
+        </h1>
+        <p class="hero-subtitle">Interactive lessons, real coding challenges, mini-games, and quizzes — all in one place. No boring tutorials, only adventures.</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" onclick="goTo('learn')">Start Learning ⚡</button>
+          <button class="btn btn-ghost" onclick="goTo('games')">Play Games 🎮</button>
+        </div>
+        <div class="hero-stats">
+          <div class="stat-card"><span class="stat-num" id="stat-topics">8</span><span class="stat-label">Topics</span></div>
+          <div class="stat-card"><span class="stat-num" id="stat-challenges">12</span><span class="stat-label">Challenges</span></div>
+          <div class="stat-card"><span class="stat-num" id="stat-games">5</span><span class="stat-label">Games</span></div>
+          <div class="stat-card"><span class="stat-num" id="stat-questions">40+</span><span class="stat-label">Quiz Q's</span></div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="code-window">
+          <div class="window-bar">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="window-title">script.js</span>
+          </div>
+          <pre class="typing-code" id="typing-code"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Dashboard -->
+    <div class="dashboard-section">
+      <h2 class="section-title">Your Progress <span class="level-badge" id="level-badge">Level 1</span></h2>
+      <div class="progress-grid">
+        <div class="progress-card">
+          <div class="progress-icon">📖</div>
+          <div class="progress-info">
+            <span class="progress-label">Topics Learned</span>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="pb-topics" style="width:0%"></div>
+            </div>
+            <span class="progress-pct" id="pct-topics">0 / 8</span>
+          </div>
+        </div>
+        <div class="progress-card">
+          <div class="progress-icon">💪</div>
+          <div class="progress-info">
+            <span class="progress-label">Challenges Done</span>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="pb-challenges" style="width:0%"></div>
+            </div>
+            <span class="progress-pct" id="pct-challenges">0 / 12</span>
+          </div>
+        </div>
+        <div class="progress-card">
+          <div class="progress-icon">🧠</div>
+          <div class="progress-info">
+            <span class="progress-label">Quiz Score</span>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="pb-quiz" style="width:0%"></div>
+            </div>
+            <span class="progress-pct" id="pct-quiz">0%</span>
+          </div>
+        </div>
+        <div class="progress-card">
+          <div class="progress-icon">⚡</div>
+          <div class="progress-info">
+            <span class="progress-label">Total XP</span>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar xp-bar" id="pb-xp" style="width:0%"></div>
+            </div>
+            <span class="progress-pct" id="pct-xp">0 / 500 XP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="achievements-section">
+      <h2 class="section-title">Achievements</h2>
+      <div class="achievements-grid" id="achievements-grid">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LEARN SECTION ===== -->
+  <section id="learn" class="section">
+    <div class="section-header">
+      <h2 class="section-title">Learn Concepts</h2>
+      <p class="section-sub">Tap a topic to dive in. Each lesson has an explanation, examples, and a live code editor.</p>
+    </div>
+    <div class="topics-grid" id="topics-grid">
+      <!-- Filled by JS -->
+    </div>
+    <div class="concept-panel" id="concept-panel">
+      <button class="back-btn" id="back-to-topics">← Back to Topics</button>
+      <div id="concept-content"><!-- Filled by JS --></div>
+    </div>
+  </section>
+
+  <!-- ===== PRACTICE SECTION ===== -->
+  <section id="practice" class="section">
+    <div class="section-header">
+      <h2 class="section-title">Practice Challenges</h2>
+      <p class="section-sub">Solve coding challenges and build real skills. Hints and solutions included.</p>
+    </div>
+    <div class="challenges-list" id="challenges-list"><!-- Filled by JS --></div>
+    <div class="challenge-panel" id="challenge-panel">
+      <button class="back-btn" id="back-to-challenges">← Back to Challenges</button>
+      <div id="challenge-content"><!-- Filled by JS --></div>
+    </div>
+  </section>
+
+  <!-- ===== GAMES SECTION ===== -->
+  <section id="games" class="section">
+    <div class="section-header">
+      <h2 class="section-title">Mini Games</h2>
+      <p class="section-sub">Learn while playing! Each game teaches a JavaScript concept.</p>
+    </div>
+    <div class="games-grid" id="games-grid"><!-- Filled by JS --></div>
+    <div class="game-arena" id="game-arena">
+      <button class="back-btn" id="back-to-games">← Back to Games</button>
+      <div id="game-content"><!-- Filled by JS --></div>
+    </div>
+  </section>
+
+  <!-- ===== QUIZ SECTION ===== -->
+  <section id="quiz" class="section">
+    <div class="section-header">
+      <h2 class="section-title">Quiz Arena</h2>
+      <p class="section-sub">Test your knowledge! MCQs across all topics.</p>
+    </div>
+    <div id="quiz-setup">
+      <div class="quiz-setup-card">
+        <h3>Choose a Topic</h3>
+        <div class="quiz-topics" id="quiz-topics"><!-- Filled by JS --></div>
+        <button class="btn btn-primary" id="start-quiz-btn">Start Quiz ⚡</button>
+      </div>
+    </div>
+    <div id="quiz-game" class="hidden"><!-- Filled by JS --></div>
+    <div id="quiz-results" class="hidden"><!-- Filled by JS --></div>
+  </section>
+
+</main>
+
+<!-- ===== TOAST NOTIFICATION ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== XP POPUP ===== -->
+<div class="xp-popup" id="xp-popup"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
