@@ -29,15 +29,18 @@ import {
 /* ============================================================
    🔧 YOUR FIREBASE CONFIG — UPDATED WITH YOUR PROJECT DATA
 ============================================================ */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey:            "AIzaSyB-8mxzFyT9auS5vuvjMHtLc80hzep6qzA",
-  authDomain:        "js-quest-99f7d.firebaseapp.com",
-  projectId:         "js-quest-99f7d",
-  storageBucket:     "js-quest-99f7d.firebasestorage.app",
+  // Ab key direct code mein nahi dikhegi, balki .env file se aayegi
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY, 
+  authDomain: "js-quest-99f7d.firebaseapp.com",
+  projectId: "js-quest-99f7d",
+  storageBucket: "js-quest-99f7d.firebasestorage.app",
   messagingSenderId: "981981478083",
-  appId:             "1:981981478083:web:5b410d833f7647a898f676",
-  measurementId:     "G-0QKJD9VDJ1"
+  appId: "1:981981478083:web:5b410d833f7647a898f676",
+  measurementId: "G-0QKJD9VDJ1"
 };
+
 
 /* ============================================================
    INIT
