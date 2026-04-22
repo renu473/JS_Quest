@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+<<<<<<< HEAD
   <meta charset="UTF-8"/>
+=======
+  <meta charset="UTF-8" />
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>JS Quest — Learn JavaScript Interactively</title>
   <link rel="stylesheet" href="style.css"/>
@@ -9,23 +13,37 @@
 </head>
 <body>
 
+<<<<<<< HEAD
 <!-- Audio -->
 <audio id="snd-click"    src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
 <audio id="snd-success"  src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
 <audio id="snd-wrong"    src="https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3" preload="auto"></audio>
 <audio id="snd-complete" src="https://assets.mixkit.co/active_storage/sfx/1436/1436-preview.mp3" preload="auto"></audio>
+=======
+<audio id="snd-click"   src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+<audio id="snd-success" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
+<audio id="snd-wrong"   src="https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3" preload="auto"></audio>
+<audio id="snd-complete"src="https://assets.mixkit.co/active_storage/sfx/1436/1436-preview.mp3" preload="auto"></audio>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
 
 <canvas id="particles-canvas"></canvas>
 
 <!-- ============================================================
+<<<<<<< HEAD
      LANDING PAGE  (visible before login, hidden after)
 ============================================================ -->
 <div id="landing-page">
+=======
+     AUTH SCREEN
+============================================================ -->
+<div id="auth-screen">
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   <div class="auth-blobs" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
     <div class="blob blob-3"></div>
   </div>
+<<<<<<< HEAD
 
   <!-- Landing Navbar -->
   <nav class="landing-nav">
@@ -134,6 +152,21 @@
 
       <div id="auth-error-login" class="auth-error hidden"></div>
 
+=======
+  <div class="auth-wrapper">
+    <div class="auth-brand">
+      <span class="auth-brand-icon">⚡</span>
+      <span class="auth-brand-text">JS<span class="auth-brand-accent">Quest</span></span>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="auth-card" id="login-card">
+      <div class="auth-card-header">
+        <h2 class="auth-title">Welcome back</h2>
+        <p class="auth-sub">Sign in to continue your JS journey</p>
+      </div>
+      <div id="auth-error-login" class="auth-error hidden"></div>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
       <div class="auth-form">
         <div class="auth-field">
           <label class="auth-label">Email</label>
@@ -146,15 +179,19 @@
             <button class="auth-eye" onclick="togglePw('login-password',this)" tabindex="-1">👁</button>
           </div>
         </div>
+<<<<<<< HEAD
         <!-- Forgot password link -->
         <div style="text-align:right;margin-top:-0.25rem">
           <button class="auth-link-btn" style="font-size:0.8rem" onclick="switchAuthPanel('forgot')">Forgot password?</button>
         </div>
+=======
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
         <button class="btn btn-primary auth-submit" id="login-btn" onclick="handleLogin()">
           <span class="btn-label">Sign In</span>
           <span class="btn-spinner hidden">⟳</span>
         </button>
       </div>
+<<<<<<< HEAD
 
       <div class="auth-divider"><span>or</span></div>
       <div class="auth-switch">
@@ -173,6 +210,21 @@
 
       <div id="auth-error-signup" class="auth-error hidden"></div>
 
+=======
+      <div class="auth-divider"><span>or</span></div>
+      <div class="auth-switch">
+        No account yet? <button class="auth-link-btn" onclick="switchAuthPanel('signup')">Create one free →</button>
+      </div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div class="auth-card hidden" id="signup-card">
+      <div class="auth-card-header">
+        <h2 class="auth-title">Join JS Quest</h2>
+        <p class="auth-sub">Create your free account and start learning</p>
+      </div>
+      <div id="auth-error-signup" class="auth-error hidden"></div>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
       <div class="auth-form">
         <div class="auth-field">
           <label class="auth-label">Display Name</label>
@@ -196,13 +248,17 @@
           <span class="btn-spinner hidden">⟳</span>
         </button>
       </div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
       <div class="auth-divider"><span>or</span></div>
       <div class="auth-switch">
         Already have an account? <button class="auth-link-btn" onclick="switchAuthPanel('login')">Sign in →</button>
       </div>
     </div>
 
+<<<<<<< HEAD
     <!-- FORGOT PASSWORD PANEL -->
     <div id="modal-forgot" class="modal-panel hidden">
       <div style="text-align:center;margin-bottom:1.25rem;font-size:2.5rem">🔑</div>
@@ -228,16 +284,31 @@
       <div style="text-align:center;margin-top:1.25rem">
         <button class="auth-link-btn" onclick="switchAuthPanel('login')">← Back to Sign In</button>
       </div>
+=======
+    <div class="auth-features">
+      <span class="auth-feat">🎮 5 Mini Games</span>
+      <span class="auth-feat">📚 8 Topics</span>
+      <span class="auth-feat">🏆 Leaderboard</span>
+      <span class="auth-feat">⚡ XP System</span>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
     </div>
   </div>
 </div>
 
+<<<<<<< HEAD
 
 <!-- ============================================================
      NAVBAR  (hidden until logged in)
 ============================================================ -->
 <nav class="navbar" id="navbar" style="display:none">
   <div class="nav-brand" onclick="window.goTo && goTo('home')" style="cursor:pointer">
+=======
+<!-- ============================================================
+     NAVBAR (hidden until logged in)
+============================================================ -->
+<nav class="navbar" id="navbar" style="display:none">
+  <div class="nav-brand">
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
     <span class="brand-icon">⚡</span>
     <span class="brand-text">JS<span class="brand-accent">Quest</span></span>
   </div>
@@ -251,6 +322,7 @@
   </ul>
   <div class="nav-controls">
     <div class="xp-badge" id="nav-xp">⚡ <span id="xp-count">0</span> XP</div>
+<<<<<<< HEAD
     <!-- User pill with logout -->
     <div class="nav-user-pill" id="nav-user-pill">
       <div class="nav-avatar" id="nav-avatar">?</div>
@@ -272,15 +344,26 @@
           <button class="dropdown-item dropdown-logout" onclick="handleLogout()">↪ Sign Out</button>
         </div>
       </div>
+=======
+    <div class="nav-user-pill" id="nav-user-pill">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span class="nav-user-name" id="nav-user-name">Player</span>
+      <button class="nav-logout-btn" id="logout-btn" onclick="handleLogout()" title="Logout">↪</button>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
     </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle theme">🌙</button>
     <button class="hamburger" id="hamburger">☰</button>
   </div>
 </nav>
 
+<<<<<<< HEAD
 
 <!-- ============================================================
      MAIN APP  (hidden until logged in)
+=======
+<!-- ============================================================
+     MAIN APP (hidden until logged in)
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
 ============================================================ -->
 <main id="app" style="display:none">
 
@@ -308,7 +391,11 @@
             <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
             <span class="window-title">script.js</span>
           </div>
+<<<<<<< HEAD
           <pre class="typing-code" id="typing-code-app"></pre>
+=======
+          <pre class="typing-code" id="typing-code"></pre>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
         </div>
       </div>
     </div>
@@ -318,7 +405,11 @@
       <div class="uwc-avatar" id="uwc-avatar">?</div>
       <div class="uwc-info">
         <div class="uwc-greeting" id="uwc-greeting">Welcome back!</div>
+<<<<<<< HEAD
         <div class="uwc-name" id="uwc-name">Player</div>
+=======
+        <div class="uwc-name"     id="uwc-name">Player</div>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
         <div class="uwc-meta">
           <span class="uwc-level" id="uwc-level">Level 1</span>
           <span class="uwc-xp"   id="uwc-xp">0 XP</span>
@@ -436,6 +527,7 @@
 
 </main>
 
+<<<<<<< HEAD
 <!-- App Footer (inside app, shown when logged in) -->
 <footer class="app-footer" id="app-footer" style="display:none">
   <div class="footer-inner">
@@ -462,10 +554,20 @@
 <!-- ============================================================
      SCRIPTS
 ============================================================ -->
+=======
+<div class="toast"    id="toast"></div>
+<div class="xp-popup" id="xp-popup"></div>
+
+
+
+
+
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
 <script type="module" src="firebase.js"></script>
 <script src="script.js"></script>
 
 <script type="module">
+<<<<<<< HEAD
 import { signUp, logIn, logOut, fetchLeaderboard, sendPasswordReset } from './firebase.js';
 
 /* ── Landing typing animation ── */
@@ -560,10 +662,17 @@ document.getElementById('signup-password')?.addEventListener('input', function (
 
 /* ── Login ── */
 window.handleLogin = async function() {
+=======
+import { signUp, logIn, logOut, fetchLeaderboard } from './firebase.js';
+
+/* ── Auth handlers exposed on window ── */
+window.handleLogin = async function () {
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('auth-error-login');
   const btn      = document.getElementById('login-btn');
+<<<<<<< HEAD
   hideEl(errEl);
   if (!email || !password) return showErr(errEl,'Please fill in all fields.');
   setLoading(btn, true);
@@ -578,11 +687,27 @@ window.handleLogin = async function() {
 
 /* ── Sign Up ── */
 window.handleSignup = async function() {
+=======
+  if (!email || !password) return showAuthError(errEl, 'Please fill in all fields.');
+  setAuthLoading(btn, true);
+  errEl.classList.add('hidden');
+  try {
+    await logIn(email, password);
+  } catch (err) {
+    showAuthError(errEl, friendlyAuthError(err.code));
+  } finally {
+    setAuthLoading(btn, false);
+  }
+};
+
+window.handleSignup = async function () {
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   const name     = document.getElementById('signup-name').value.trim();
   const email    = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   const errEl    = document.getElementById('auth-error-signup');
   const btn      = document.getElementById('signup-btn');
+<<<<<<< HEAD
   hideEl(errEl);
   if (!name)               return showErr(errEl,'Please enter your display name.');
   if (!email)              return showErr(errEl,'Please enter your email address.');
@@ -652,6 +777,59 @@ document.getElementById('login-email')?.addEventListener('keydown',     e => { i
 
 /* ── Leaderboard renderer ── */
 window.renderLeaderboard = async function() {
+=======
+  if (!name || !email || !password) return showAuthError(errEl, 'Please fill in all fields.');
+  if (password.length < 6) return showAuthError(errEl, 'Password must be at least 6 characters.');
+  setAuthLoading(btn, true);
+  errEl.classList.add('hidden');
+  try {
+    await signUp(name, email, password);
+  } catch (err) {
+    showAuthError(errEl, friendlyAuthError(err.code));
+  } finally {
+    setAuthLoading(btn, false);
+  }
+};
+
+window.handleLogout = async function () {
+  await logOut();
+};
+
+window.switchAuthPanel = function (panel) {
+  document.getElementById('login-card').classList.toggle('hidden', panel !== 'login');
+  document.getElementById('signup-card').classList.toggle('hidden', panel !== 'signup');
+};
+
+window.togglePw = function (inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else                           { input.type = 'password'; btn.textContent = '👁'; }
+};
+
+/* ── Password strength ── */
+document.getElementById('signup-password')?.addEventListener('input', function () {
+  const val   = this.value;
+  const fill  = document.getElementById('pw-strength-fill');
+  const lbl   = document.getElementById('pw-strength-label');
+  let score   = 0;
+  if (val.length >= 6)          score++;
+  if (val.length >= 10)         score++;
+  if (/[A-Z]/.test(val))        score++;
+  if (/[0-9]/.test(val))        score++;
+  if (/[^a-zA-Z0-9]/.test(val)) score++;
+  const pct   = (score / 5) * 100;
+  const color = score <= 1 ? '#ff6b6b' : score <= 3 ? '#f7c948' : '#4ecdc4';
+  const label = score <= 1 ? 'Weak' : score <= 3 ? 'Medium' : 'Strong';
+  if (fill) { fill.style.width = pct + '%'; fill.style.background = color; }
+  if (lbl)  { lbl.textContent = val.length > 0 ? label : ''; lbl.style.color = color; }
+});
+
+document.getElementById('login-password')?.addEventListener('keydown',  e => { if (e.key==='Enter') window.handleLogin(); });
+document.getElementById('signup-password')?.addEventListener('keydown', e => { if (e.key==='Enter') window.handleSignup(); });
+
+/* ── Leaderboard renderer ── */
+window.renderLeaderboard = async function () {
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   const el = document.getElementById('leaderboard-content');
   if (!el) return;
   el.innerHTML = '<div class="lb-loading"><div class="lb-spinner"></div><p>Fetching rankings…</p></div>';
@@ -669,6 +847,7 @@ window.renderLeaderboard = async function() {
             <span class="lb-th level-col">Level</span>
             <span class="lb-th badge-col">Badges</span>
           </div>
+<<<<<<< HEAD
           <div class="lb-table-body">${users.map(u=>buildRow(u,myUid)).join('')}</div>
         </div>
         <div style="display:flex;justify-content:center;margin-top:1rem">
@@ -678,10 +857,24 @@ window.renderLeaderboard = async function() {
       </div>`;
   } catch(err) {
     el.innerHTML = `<div class="lb-error"><div class="lb-error-icon">⚠️</div><h3>Could not load leaderboard</h3><p>Check Firestore is set up in test mode.</p><small>${err.message}</small></div>`;
+=======
+          <div class="lb-table-body">${users.map(u => buildRow(u, myUid)).join('')}</div>
+        </div>
+        <p class="lb-refresh-note">Earn XP by completing topics, challenges &amp; quizzes to climb the ranks</p>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="lb-error">
+      <div class="lb-error-icon">⚠️</div>
+      <h3>Could not load leaderboard</h3>
+      <p>Make sure your Firebase config is set up in <code>firebase.js</code></p>
+      <small>${err.message}</small>
+    </div>`;
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   }
 };
 
 function buildPodium(top3, myUid) {
+<<<<<<< HEAD
   const medals=['🥇','🥈','🥉'], heights=['podium-1st','podium-2nd','podium-3rd'], order=[1,0,2];
   return `<div class="podium-row">${order.map(i=>{
     const u=top3[i];
@@ -691,6 +884,19 @@ function buildPodium(top3, myUid) {
       <div class="podium-avatar" style="background:${avc(u.name)}">${(u.name||'?')[0].toUpperCase()}</div>
       <div class="podium-medal">${medals[i]}</div>
       <div class="podium-name">${esc(u.name||'Anonymous')}${isMe?' <span class="podium-you">YOU</span>':''}</div>
+=======
+  const medals  = ['🥇','🥈','🥉'];
+  const heights = ['podium-1st','podium-2nd','podium-3rd'];
+  const order   = [1,0,2];
+  return `<div class="podium-row">${order.map(i => {
+    const u = top3[i];
+    if (!u) return `<div class="podium-slot ${heights[i]}"><div class="podium-empty">—</div></div>`;
+    const isMe = u.uid === myUid;
+    return `<div class="podium-slot ${heights[i]}${isMe?' podium-me':''}">
+      <div class="podium-avatar" style="background:${avatarColor(u.name)}">${(u.name||'?')[0].toUpperCase()}</div>
+      <div class="podium-medal">${medals[i]}</div>
+      <div class="podium-name">${u.name||'Anonymous'}${isMe?' <span class=\'podium-you\'>YOU</span>':''}</div>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
       <div class="podium-xp">⚡ ${(u.xp||0).toLocaleString()}</div>
       <div class="podium-block ${heights[i]}-block"></div>
     </div>`;
@@ -698,6 +904,7 @@ function buildPodium(top3, myUid) {
 }
 
 function buildRow(u, myUid) {
+<<<<<<< HEAD
   const isMe=u.uid===myUid, medals={1:'🥇',2:'🥈',3:'🥉'}, rank=medals[u.rank]||`#${u.rank}`;
   const badges=(u.achievements||[]).slice(0,3).map(a=>{const d=(window.ACHIEVEMENTS_DEF||[]).find(x=>x.id===a);return d?`<span title="${esc(d.name)}">${d.icon}</span>`:'';}).join('');
   const more=(u.achievements||[]).length>3?`<span class="lb-more">+${(u.achievements||[]).length-3}</span>`:'';
@@ -708,10 +915,23 @@ function buildRow(u, myUid) {
       <div class="lb-player-info">
         <div class="lb-player-name">${esc(u.name||'Anonymous')}${isMe?'<span class="lb-you-tag">YOU</span>':''}</div>
         <div class="lb-player-sub">${lvlTitle(u.level||1)}</div>
+=======
+  const isMe   = u.uid === myUid;
+  const medals = {1:'🥇',2:'🥈',3:'🥉'};
+  const rank   = medals[u.rank] || `#${u.rank}`;
+  return `<div class="lb-row${isMe?' lb-row-me':''}${u.rank<=3?' lb-row-top':''}">
+    <span class="lb-td rank-col">${rank}</span>
+    <span class="lb-td lb-player">
+      <div class="lb-avatar" style="background:${avatarColor(u.name)}">${(u.name||'?')[0].toUpperCase()}</div>
+      <div class="lb-player-info">
+        <div class="lb-player-name">${u.name||'Anonymous'}${isMe?'<span class="lb-you-tag">YOU</span>':''}</div>
+        <div class="lb-player-sub">${levelTitle(u.level||1)}</div>
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
       </div>
     </span>
     <span class="lb-td xp-col"><span class="lb-xp-pill">⚡ ${(u.xp||0).toLocaleString()}</span></span>
     <span class="lb-td level-col"><span class="lb-level-badge">Lv ${u.level||1}</span></span>
+<<<<<<< HEAD
     <span class="lb-td badge-col">${badges}${more}</span>
   </div>`;
 }
@@ -758,6 +978,56 @@ document.getElementById('theme-toggle-landing')?.addEventListener('click', () =>
   const appToggle = document.getElementById('theme-toggle');
   if(appToggle) appToggle.textContent = dark ? '🌞' : '🌙';
 });
+=======
+    <span class="lb-td badge-col">
+      ${(u.achievements||[]).slice(0,3).map(a=>{
+        const d=(window.ACHIEVEMENTS_DEF||[]).find(x=>x.id===a);
+        return d?`<span title="${d.name}">${d.icon}</span>`:'';
+      }).join('')}${(u.achievements||[]).length>3?`<span class="lb-more">+${(u.achievements||[]).length-3}</span>`:''}
+    </span>
+  </div>`;
+}
+
+function levelTitle(lvl) {
+  if (lvl>=10) return '🔥 Legend';
+  if (lvl>=7)  return '⚡ Expert';
+  if (lvl>=5)  return '🚀 Advanced';
+  if (lvl>=3)  return '💡 Learner';
+  return '🌱 Beginner';
+}
+
+function avatarColor(name) {
+  const c=['#f7c948','#4ecdc4','#a855f7','#ff6b6b','#50fa7b','#8be9fd'];
+  return c[((name||'?').charCodeAt(0))%c.length];
+}
+
+function friendlyAuthError(code) {
+  const m = {
+    'auth/email-already-in-use':   'That email is already registered.',
+    'auth/invalid-email':          'Please enter a valid email.',
+    'auth/weak-password':          'Password must be at least 6 characters.',
+    'auth/user-not-found':         'No account found with that email.',
+    'auth/wrong-password':         'Incorrect password.',
+    'auth/too-many-requests':      'Too many attempts. Please wait.',
+    'auth/network-request-failed': 'Network error. Check your connection.',
+    'auth/invalid-credential':     'Invalid email or password.',
+  };
+  return m[code] || `Error (${code})`;
+}
+
+function showAuthError(el, msg) {
+  if (!el) return;
+  el.textContent = '⚠️ ' + msg;
+  el.classList.remove('hidden');
+}
+
+function setAuthLoading(btn, loading) {
+  if (!btn) return;
+  btn.querySelector('.btn-label')?.classList.toggle('hidden', loading);
+  btn.querySelector('.btn-spinner')?.classList.toggle('hidden', !loading);
+  btn.disabled = loading;
+}
+>>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
 </script>
 
 </body>
