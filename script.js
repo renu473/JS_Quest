@@ -1,11 +1,11 @@
 /**
  * JS Quest — Main Script
  * Interactive JavaScript Learning Platform
- * Sections: Home, Learn, Practice, Games, Quiz
+ * Sections: Home, Learn, Practice, Games, Quiz, Leaderboard
  */
 
 /* ============================================================
-   1. STATE & PROGRESS (localStorage backed)
+   1. STATE & PROGRESS (localStorage + Firestore backed)
 ============================================================ */
 const STATE_KEY = 'jsquest_progress';
 
@@ -20,16 +20,28 @@ let state = {
   level: 1,
 };
 
+// Expose on window so firebase.js can read/write it
+window.state = state;
+
 function loadState() {
   try {
     const saved = localStorage.getItem(STATE_KEY);
-    if (saved) state = { ...state, ...JSON.parse(saved) };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      Object.assign(state, parsed);
+      window.state = state;
+    }
   } catch (e) {}
 }
 
 function saveState() {
   localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  // Sync to Firestore (non-blocking, defined in firebase.js)
+  if (typeof window.saveUserToFirestore === 'function') {
+    window.saveUserToFirestore().catch(() => {});
+  }
 }
+window.saveState = saveState;
 
 function addXP(amount, label = '') {
   state.xp += amount;
@@ -53,19 +65,23 @@ let currentSection = 'home';
 function goTo(section) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  document.getElementById(section).classList.add('active');
+  const secEl = document.getElementById(section);
+  if (secEl) secEl.classList.add('active');
   document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
   currentSection = section;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Close panels when navigating
   closeConceptPanel();
   closeChallengePanel();
   closeGameArena();
 
-  if (section === 'home') updateDashboard();
-  if (section === 'quiz') renderQuizSetup();
+  if (section === 'home')        updateDashboard();
+  if (section === 'quiz')        renderQuizSetup();
+  if (section === 'leaderboard' && typeof window.renderLeaderboard === 'function') {
+    window.renderLeaderboard();
+  }
 }
+window.goTo = goTo;
 
 document.querySelectorAll('.nav-link').forEach(link => {
   link.addEventListener('click', (e) => {
@@ -217,15 +233,16 @@ function showXPPopup(msg) {
    8. ACHIEVEMENTS
 ============================================================ */
 const ACHIEVEMENTS_DEF = [
-  { id: 'first_topic', icon: '📖', name: 'First Steps', desc: 'Complete your first topic', check: s => s.completedTopics.length >= 1 },
-  { id: 'all_topics', icon: '🎓', name: 'Scholar', desc: 'Complete all 8 topics', check: s => s.completedTopics.length >= 8 },
-  { id: 'first_challenge', icon: '💪', name: 'Code Warrior', desc: 'Solve your first challenge', check: s => s.completedChallenges.length >= 1 },
-  { id: 'all_challenges', icon: '🏆', name: 'Challenge Master', desc: 'Solve all 12 challenges', check: s => s.completedChallenges.length >= 12 },
-  { id: 'quiz_100', icon: '🧠', name: 'Quiz Genius', desc: 'Score 100% in a quiz', check: s => s.quizBestScore >= 100 },
-  { id: 'xp_100', icon: '⚡', name: 'XP Collector', desc: 'Earn 100 XP', check: s => s.xp >= 100 },
-  { id: 'xp_500', icon: '🌟', name: 'XP Legend', desc: 'Earn 500 XP', check: s => s.xp >= 500 },
-  { id: 'level_3', icon: '🚀', name: 'Level Up!', desc: 'Reach Level 3', check: s => s.level >= 3 },
+  { id: 'first_topic',      icon: '📖', name: 'First Steps',       desc: 'Complete your first topic',   check: s => s.completedTopics.length >= 1 },
+  { id: 'all_topics',       icon: '🎓', name: 'Scholar',           desc: 'Complete all 8 topics',        check: s => s.completedTopics.length >= 8 },
+  { id: 'first_challenge',  icon: '💪', name: 'Code Warrior',      desc: 'Solve your first challenge',   check: s => s.completedChallenges.length >= 1 },
+  { id: 'all_challenges',   icon: '🏆', name: 'Challenge Master',  desc: 'Solve all 16 challenges',      check: s => s.completedChallenges.length >= 16 },
+  { id: 'quiz_100',         icon: '🧠', name: 'Quiz Genius',       desc: 'Score 100% in a quiz',          check: s => s.quizBestScore >= 100 },
+  { id: 'xp_100',           icon: '⚡', name: 'XP Collector',      desc: 'Earn 100 XP',                   check: s => s.xp >= 100 },
+  { id: 'xp_500',           icon: '🌟', name: 'XP Legend',         desc: 'Earn 500 XP',                   check: s => s.xp >= 500 },
+  { id: 'level_3',          icon: '🚀', name: 'Level Up!',         desc: 'Reach Level 3',                 check: s => s.level >= 3 },
 ];
+window.ACHIEVEMENTS_DEF = ACHIEVEMENTS_DEF;
 
 function checkAchievements() {
   ACHIEVEMENTS_DEF.forEach(def => {
@@ -263,9 +280,9 @@ function updateDashboard() {
   setText('pct-topics', `${state.completedTopics.length} / 8`);
 
   // challenges
-  const chPct = (state.completedChallenges.length / 12) * 100;
+  const chPct = (state.completedChallenges.length / 16) * 100;
   setBar('pb-challenges', chPct);
-  setText('pct-challenges', `${state.completedChallenges.length} / 12`);
+  setText('pct-challenges', `${state.completedChallenges.length} / 16`);
 
   // quiz
   setBar('pb-quiz', state.quizBestScore || 0);
@@ -276,13 +293,35 @@ function updateDashboard() {
   setBar('pb-xp', xpPct);
   setText('pct-xp', `${state.xp} / 500 XP`);
 
-  // level
+  // level badge
   const lb = document.getElementById('level-badge');
   if (lb) lb.textContent = `Level ${state.level}`;
+
+  // ── User Welcome Card ──
+  const user = window.currentUser;
+  if (user) {
+    const name     = user.displayName || user.email?.split('@')[0] || 'Player';
+    const initial  = name[0].toUpperCase();
+    const hour     = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+    setText('uwc-greeting', `${greeting},`);
+    setText('uwc-name', name);
+    setText('uwc-level', `Level ${state.level}`);
+    setText('uwc-xp', `${state.xp} XP`);
+
+    const avatarEls = ['uwc-avatar','nav-avatar'];
+    avatarEls.forEach(id => { const el=document.getElementById(id); if(el) el.textContent=initial; });
+    setText('nav-user-name', name.split(' ')[0]);
+
+    // Nav XP
+    updateNavXP();
+  }
 
   renderAchievements();
   updateNavXP();
 }
+window.updateDashboard = updateDashboard;
 
 function setBar(id, pct) {
   const el = document.getElementById(id);
@@ -703,214 +742,555 @@ function copyCode(btn) {
 }
 
 /* ============================================================
-   13. PRACTICE — CHALLENGES DATA
+   13. PRACTICE — STAGE-BASED CHALLENGE SYSTEM
 ============================================================ */
+
+// ---- Stage definitions ----
+const PRACTICE_STAGES = [
+  {
+    id: 'stage1', num: 1, icon: '🌱', name: 'Foundations',
+    desc: 'Variables, data types & basic functions',
+    color: '#4ecdc4', colorBg: 'rgba(78,205,196,0.12)',
+    challengeIds: ['ch1','ch2','ch3','ch4'],
+    unlockAfter: null, // always open
+  },
+  {
+    id: 'stage2', num: 2, icon: '⚙️', name: 'Functions & Logic',
+    desc: 'Real-world function problems and conditionals',
+    color: '#f7c948', colorBg: 'rgba(247,201,72,0.12)',
+    challengeIds: ['ch5','ch6','ch7','ch8'],
+    unlockAfter: 'stage1',
+  },
+  {
+    id: 'stage3', num: 3, icon: '📋', name: 'Arrays & Objects',
+    desc: 'Data transformation and aggregation challenges',
+    color: '#a855f7', colorBg: 'rgba(168,85,247,0.12)',
+    challengeIds: ['ch9','ch10','ch11','ch12'],
+    unlockAfter: 'stage2',
+  },
+  {
+    id: 'stage4', num: 4, icon: '🚀', name: 'Advanced Patterns',
+    desc: 'Closures, async-style problems & real app scenarios',
+    color: '#ff6b6b', colorBg: 'rgba(255,107,107,0.12)',
+    challengeIds: ['ch13','ch14','ch15','ch16'],
+    unlockAfter: 'stage3',
+  },
+];
+
+// ---- All challenges ----
 const CHALLENGES = [
+  /* ── STAGE 1: Foundations ── */
   {
-    id: 'ch1', num: '#01', diff: 'easy', title: 'Hello World',
-    desc: 'Write a function that returns "Hello, World!"',
-    task: 'Create a function called `hello` that returns the string "Hello, World!"',
-    requirements: ['Function is named `hello`', 'Returns "Hello, World!" exactly', 'No parameters needed'],
-    tags: ['functions', 'strings'],
-    hint: 'Use the `return` keyword inside your function to send back a value.',
-    solution: `function hello() {\n  return "Hello, World!";\n}\nconsole.log(hello());`,
-    starter: `function hello() {\n  // your code here\n}\n\nconsole.log(hello()); // should print "Hello, World!"`,
-    test: code => { try { const fn = new Function(code + '; return hello();'); return fn() === 'Hello, World!'; } catch(e) { return false; } }
+    id: 'ch1', diff: 'easy', xp: 15,
+    title: 'Shopping Cart Total',
+    scenario: '🛒 You\'re building a checkout page. Calculate the total price of items in a cart.',
+    task: 'Write `cartTotal(prices)` that takes an array of prices and returns their sum.',
+    requirements: [
+      'Function named `cartTotal`',
+      'Takes an array of numbers',
+      'Returns the numerical sum',
+      'Return 0 for an empty cart',
+    ],
+    hint: 'Use reduce() to accumulate the total. Start with 0 as initial value.',
+    solution: `function cartTotal(prices) {\n  return prices.reduce((sum, p) => sum + p, 0);\n}\nconsole.log(cartTotal([9.99, 4.99, 14.99])); // 29.97`,
+    starter: `function cartTotal(prices) {\n  // Add up all prices and return the total\n}\n\nconsole.log(cartTotal([9.99, 4.99, 14.99])); // 29.97\nconsole.log(cartTotal([100, 50, 25]));        // 175\nconsole.log(cartTotal([]));                   // 0`,
+    tests: [
+      { input: '[9.99, 4.99, 14.99]', fn: c => { try { return Math.abs(new Function(c+';return cartTotal([9.99,4.99,14.99]);')() - 29.97) < 0.01; } catch(e){return false;} } },
+      { input: '[100, 50, 25]', fn: c => { try { return new Function(c+';return cartTotal([100,50,25]);')() === 175; } catch(e){return false;} } },
+      { input: '[]', fn: c => { try { return new Function(c+';return cartTotal([]);')() === 0; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch2', num: '#02', diff: 'easy', title: 'Sum of Two Numbers',
-    desc: 'Create a function that adds two numbers together',
-    task: 'Write a function called `sum` that takes two numbers and returns their sum.',
-    requirements: ['Function named `sum`', 'Takes two parameters', 'Returns the sum'],
-    tags: ['functions', 'math'],
-    hint: 'Use the `+` operator to add two values.',
-    solution: `function sum(a, b) {\n  return a + b;\n}\nconsole.log(sum(3, 7)); // 10`,
-    starter: `function sum(a, b) {\n  // your code here\n}\n\nconsole.log(sum(3, 7));  // should print 10\nconsole.log(sum(10, 5)); // should print 15`,
-    test: code => { try { const fn = new Function(code + '; return sum(3,7) === 10 && sum(10,5) === 15;'); return fn(); } catch(e) { return false; } }
+    id: 'ch2', diff: 'easy', xp: 15,
+    title: 'Username Validator',
+    scenario: '🔐 You\'re building a sign-up form. Usernames must be 3–15 chars and contain only letters/numbers.',
+    task: 'Write `isValidUsername(name)` that returns true if the username is valid.',
+    requirements: [
+      'Length must be 3–15 characters',
+      'Only letters (a-z, A-Z) and digits (0-9)',
+      'No spaces or special characters',
+      'Returns a boolean',
+    ],
+    hint: 'Use a regex: /^[a-zA-Z0-9]{3,15}$/.test(name)',
+    solution: `function isValidUsername(name) {\n  return /^[a-zA-Z0-9]{3,15}$/.test(name);\n}\nconsole.log(isValidUsername("alex123")); // true`,
+    starter: `function isValidUsername(name) {\n  // Validate the username and return true/false\n}\n\nconsole.log(isValidUsername("alex123"));  // true\nconsole.log(isValidUsername("ab"));       // false (too short)\nconsole.log(isValidUsername("hello world")); // false (has space)\nconsole.log(isValidUsername("super_user")); // false (underscore)`,
+    tests: [
+      { input: '"alex123"', fn: c => { try { return new Function(c+';return isValidUsername("alex123");')() === true; } catch(e){return false;} } },
+      { input: '"ab"', fn: c => { try { return new Function(c+';return isValidUsername("ab");')() === false; } catch(e){return false;} } },
+      { input: '"hello world"', fn: c => { try { return new Function(c+';return isValidUsername("hello world");')() === false; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch3', num: '#03', diff: 'easy', title: 'Even or Odd?',
-    desc: 'Determine if a number is even or odd',
-    task: 'Write a function `isEven(n)` that returns true if n is even, false if odd.',
-    requirements: ['Function named `isEven`', 'Uses modulo operator %', 'Returns a boolean'],
-    tags: ['functions', 'conditionals'],
-    hint: 'A number is even if `n % 2 === 0`.',
-    solution: `function isEven(n) {\n  return n % 2 === 0;\n}\nconsole.log(isEven(4)); // true\nconsole.log(isEven(7)); // false`,
-    starter: `function isEven(n) {\n  // your code here\n}\n\nconsole.log(isEven(4)); // true\nconsole.log(isEven(7)); // false\nconsole.log(isEven(0)); // true`,
-    test: code => { try { const fn = new Function(code + '; return isEven(4)===true && isEven(7)===false;'); return fn(); } catch(e) { return false; } }
+    id: 'ch3', diff: 'easy', xp: 15,
+    title: 'Temperature Converter',
+    scenario: '🌡️ A weather app needs to show both Celsius and Fahrenheit. Build the conversion function.',
+    task: 'Write `toCelsius(f)` that converts Fahrenheit to Celsius. Formula: C = (F − 32) × 5/9. Round to 1 decimal.',
+    requirements: [
+      'Function named `toCelsius`',
+      'Takes Fahrenheit value',
+      'Returns Celsius rounded to 1 decimal',
+      '32°F → 0°C, 212°F → 100°C',
+    ],
+    hint: 'Use Math.round or .toFixed(1). Formula: (f - 32) * 5/9',
+    solution: `function toCelsius(f) {\n  return Math.round((f - 32) * 5/9 * 10) / 10;\n}\nconsole.log(toCelsius(32));  // 0\nconsole.log(toCelsius(212)); // 100`,
+    starter: `function toCelsius(f) {\n  // Convert Fahrenheit to Celsius, rounded to 1 decimal\n}\n\nconsole.log(toCelsius(32));   // 0\nconsole.log(toCelsius(212));  // 100\nconsole.log(toCelsius(98.6)); // 37`,
+    tests: [
+      { input: '32', fn: c => { try { return new Function(c+';return toCelsius(32);')() === 0; } catch(e){return false;} } },
+      { input: '212', fn: c => { try { return new Function(c+';return toCelsius(212);')() === 100; } catch(e){return false;} } },
+      { input: '98.6', fn: c => { try { return new Function(c+';return toCelsius(98.6);')() === 37; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch4', num: '#04', diff: 'easy', title: 'Reverse a String',
-    desc: 'Return a string in reverse order',
-    task: 'Write a function `reverseStr(s)` that returns the string reversed.',
-    requirements: ['Function named `reverseStr`', 'Returns reversed string', 'Handle empty string'],
-    tags: ['strings', 'arrays'],
-    hint: 'Try: split("") → reverse() → join("")',
-    solution: `function reverseStr(s) {\n  return s.split("").reverse().join("");\n}\nconsole.log(reverseStr("hello")); // "olleh"`,
-    starter: `function reverseStr(s) {\n  // your code here\n}\n\nconsole.log(reverseStr("hello")); // "olleh"\nconsole.log(reverseStr("JS"));    // "SJ"`,
-    test: code => { try { const fn = new Function(code + '; return reverseStr("hello")==="olleh";'); return fn(); } catch(e) { return false; } }
+    id: 'ch4', diff: 'easy', xp: 15,
+    title: 'Capitalize Words',
+    scenario: '✍️ A blog editor needs to format post titles by capitalizing the first letter of each word.',
+    task: 'Write `titleCase(str)` that capitalizes the first letter of each word.',
+    requirements: [
+      'First letter of each word → uppercase',
+      'Rest of each word → lowercase',
+      '"hello world" → "Hello World"',
+      'Handle single words too',
+    ],
+    hint: 'Split on spaces, map each word, use word[0].toUpperCase() + word.slice(1).toLowerCase()',
+    solution: `function titleCase(str) {\n  return str.split(' ').map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');\n}\nconsole.log(titleCase("hello world")); // "Hello World"`,
+    starter: `function titleCase(str) {\n  // Capitalize the first letter of each word\n}\n\nconsole.log(titleCase("hello world"));   // "Hello World"\nconsole.log(titleCase("javascript is fun")); // "Javascript Is Fun"\nconsole.log(titleCase("REACT"));         // "React"`,
+    tests: [
+      { input: '"hello world"', fn: c => { try { return new Function(c+';return titleCase("hello world");')() === 'Hello World'; } catch(e){return false;} } },
+      { input: '"REACT"', fn: c => { try { return new Function(c+';return titleCase("REACT");')() === 'React'; } catch(e){return false;} } },
+    ],
+  },
+
+  /* ── STAGE 2: Functions & Logic ── */
+  {
+    id: 'ch5', diff: 'easy', xp: 20,
+    title: 'Age Category',
+    scenario: '🎂 A streaming platform shows different content based on user age. Categorize the user.',
+    task: 'Write `ageCategory(age)` returning: "child" (<13), "teen" (13-17), "adult" (18-64), "senior" (65+).',
+    requirements: [
+      'Returns "child" for age < 13',
+      'Returns "teen" for 13–17',
+      'Returns "adult" for 18–64',
+      'Returns "senior" for 65+',
+    ],
+    hint: 'Use if/else if/else chain. Check from lowest to highest.',
+    solution: `function ageCategory(age) {\n  if (age < 13) return "child";\n  if (age < 18) return "teen";\n  if (age < 65) return "adult";\n  return "senior";\n}`,
+    starter: `function ageCategory(age) {\n  // Return the correct age category string\n}\n\nconsole.log(ageCategory(8));  // "child"\nconsole.log(ageCategory(15)); // "teen"\nconsole.log(ageCategory(30)); // "adult"\nconsole.log(ageCategory(70)); // "senior"`,
+    tests: [
+      { input: '8', fn: c => { try { return new Function(c+';return ageCategory(8);')() === 'child'; } catch(e){return false;} } },
+      { input: '15', fn: c => { try { return new Function(c+';return ageCategory(15);')() === 'teen'; } catch(e){return false;} } },
+      { input: '30', fn: c => { try { return new Function(c+';return ageCategory(30);')() === 'adult'; } catch(e){return false;} } },
+      { input: '70', fn: c => { try { return new Function(c+';return ageCategory(70);')() === 'senior'; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch5', num: '#05', diff: 'easy', title: 'Count Items',
-    desc: 'Count how many items are in an array',
-    task: 'Write `countItems(arr)` that returns the length of an array.',
-    requirements: ['Function named `countItems`', 'Returns a number', 'Use .length property'],
-    tags: ['arrays'],
-    hint: 'Arrays have a `.length` property.',
-    solution: `function countItems(arr) {\n  return arr.length;\n}\nconsole.log(countItems([1,2,3])); // 3`,
-    starter: `function countItems(arr) {\n  // your code here\n}\n\nconsole.log(countItems([1,2,3]));       // 3\nconsole.log(countItems(["a","b"]));    // 2\nconsole.log(countItems([]));           // 0`,
-    test: code => { try { const fn = new Function(code + '; return countItems([1,2,3])===3 && countItems([])=== 0;'); return fn(); } catch(e) { return false; } }
+    id: 'ch6', diff: 'easy', xp: 20,
+    title: 'FizzBuzz Pro',
+    scenario: '🎯 The classic interview question — but now in a real context: a game that prints special messages.',
+    task: 'Write `fizzBuzz(n)` returning an array 1..n: multiples of 3 → "Fizz", 5 → "Buzz", both → "FizzBuzz", else number as string.',
+    requirements: [
+      'Returns an array of strings',
+      'Multiples of 3 → "Fizz"',
+      'Multiples of 5 → "Buzz"',
+      'Multiples of both → "FizzBuzz"',
+    ],
+    hint: 'Check FizzBuzz (n%15===0) first, then Fizz, then Buzz.',
+    solution: `function fizzBuzz(n) {\n  const r = [];\n  for (let i = 1; i <= n; i++) {\n    if (i%15===0) r.push("FizzBuzz");\n    else if (i%3===0) r.push("Fizz");\n    else if (i%5===0) r.push("Buzz");\n    else r.push(String(i));\n  }\n  return r;\n}`,
+    starter: `function fizzBuzz(n) {\n  // Build and return the FizzBuzz array\n}\n\nconsole.log(fizzBuzz(15));\n// ["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"]`,
+    tests: [
+      { input: 'n=15, [2]==="Fizz"', fn: c => { try { const r=new Function(c+';return fizzBuzz(15);')(); return r[2]==='Fizz'&&r[4]==='Buzz'&&r[14]==='FizzBuzz'; } catch(e){return false;} } },
+      { input: 'fizzBuzz(3)[2]', fn: c => { try { return new Function(c+';return fizzBuzz(3)[2];')() === 'Fizz'; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch6', num: '#06', diff: 'easy', title: 'Find Maximum',
-    desc: 'Find the largest number in an array',
-    task: 'Write `findMax(arr)` that returns the largest number from an array.',
-    requirements: ['Function named `findMax`', 'Works with any array of numbers', 'Returns a number'],
-    tags: ['arrays', 'math'],
-    hint: 'Try `Math.max(...arr)` or use reduce().',
-    solution: `function findMax(arr) {\n  return Math.max(...arr);\n}\nconsole.log(findMax([1,5,3,9,2])); // 9`,
-    starter: `function findMax(arr) {\n  // your code here\n}\n\nconsole.log(findMax([1,5,3,9,2])); // 9\nconsole.log(findMax([10,2,30,4])); // 30`,
-    test: code => { try { const fn = new Function(code + '; return findMax([1,5,3,9,2])===9;'); return fn(); } catch(e) { return false; } }
+    id: 'ch7', diff: 'medium', xp: 30,
+    title: 'Discount Calculator',
+    scenario: '🏷️ An e-commerce site needs a discount engine. Different thresholds = different discounts.',
+    task: 'Write `applyDiscount(price, code)` — codes: "SAVE10" (10%), "HALF" (50%), "VIP" (30%). Unknown code → no discount.',
+    requirements: [
+      'Takes price (number) and code (string)',
+      '"SAVE10" → 10% off',
+      '"HALF" → 50% off',
+      '"VIP" → 30% off',
+      'Unknown code → original price',
+    ],
+    hint: 'Use a switch statement or an object map of discount rates.',
+    solution: `function applyDiscount(price, code) {\n  const discounts = { SAVE10: 0.1, HALF: 0.5, VIP: 0.3 };\n  const rate = discounts[code] || 0;\n  return Math.round(price * (1 - rate) * 100) / 100;\n}`,
+    starter: `function applyDiscount(price, code) {\n  // Apply the discount and return new price\n}\n\nconsole.log(applyDiscount(100, "SAVE10")); // 90\nconsole.log(applyDiscount(100, "HALF"));   // 50\nconsole.log(applyDiscount(100, "VIP"));    // 70\nconsole.log(applyDiscount(100, "FAKE"));   // 100`,
+    tests: [
+      { input: '(100,"SAVE10")', fn: c => { try { return new Function(c+';return applyDiscount(100,"SAVE10");')() === 90; } catch(e){return false;} } },
+      { input: '(100,"HALF")', fn: c => { try { return new Function(c+';return applyDiscount(100,"HALF");')() === 50; } catch(e){return false;} } },
+      { input: '(100,"FAKE")', fn: c => { try { return new Function(c+';return applyDiscount(100,"FAKE");')() === 100; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch7', num: '#07', diff: 'medium', title: 'FizzBuzz',
-    desc: 'Classic interview problem with loops',
-    task: 'Write `fizzBuzz(n)` that returns an array of strings 1 to n. For multiples of 3: "Fizz", 5: "Buzz", both: "FizzBuzz", else the number as string.',
-    requirements: ['Returns an array', 'Multiples of 3 → "Fizz"', 'Multiples of 5 → "Buzz"', 'Both → "FizzBuzz"'],
-    tags: ['loops', 'conditionals'],
-    hint: 'Check for FizzBuzz first (divisible by BOTH 3 AND 5), then check individually.',
-    solution: `function fizzBuzz(n) {\n  const result = [];\n  for (let i = 1; i <= n; i++) {\n    if (i % 15 === 0) result.push("FizzBuzz");\n    else if (i % 3 === 0) result.push("Fizz");\n    else if (i % 5 === 0) result.push("Buzz");\n    else result.push(String(i));\n  }\n  return result;\n}\nconsole.log(fizzBuzz(15));`,
-    starter: `function fizzBuzz(n) {\n  // your code here\n}\n\nconsole.log(fizzBuzz(15));\n// Expected: ["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"]`,
-    test: code => { try { const fn = new Function(code + '; const r=fizzBuzz(15); return r[2]==="Fizz"&&r[4]==="Buzz"&&r[14]==="FizzBuzz";'); return fn(); } catch(e) { return false; } }
+    id: 'ch8', diff: 'medium', xp: 30,
+    title: 'Password Strength',
+    scenario: '🔒 Build the password strength checker for a security-focused app.',
+    task: 'Write `passwordStrength(pwd)` returning "weak", "medium", or "strong". Weak: <6 chars. Medium: 6+ with letters+numbers. Strong: 8+ with upper, lower, number AND special char.',
+    requirements: [
+      '"weak" if length < 6',
+      '"medium" if 6+ chars with letters and numbers',
+      '"strong" if 8+ chars with uppercase, lowercase, number, special char',
+      'Returns a string',
+    ],
+    hint: 'Use regex tests: /[A-Z]/.test(pwd), /[0-9]/.test(pwd), /[^a-zA-Z0-9]/.test(pwd)',
+    solution: `function passwordStrength(pwd) {\n  if (pwd.length < 6) return "weak";\n  const hasUpper = /[A-Z]/.test(pwd);\n  const hasLower = /[a-z]/.test(pwd);\n  const hasNum = /[0-9]/.test(pwd);\n  const hasSpecial = /[^a-zA-Z0-9]/.test(pwd);\n  if (pwd.length >= 8 && hasUpper && hasLower && hasNum && hasSpecial) return "strong";\n  if (/[a-zA-Z]/.test(pwd) && hasNum) return "medium";\n  return "weak";\n}`,
+    starter: `function passwordStrength(pwd) {\n  // Determine password strength\n}\n\nconsole.log(passwordStrength("abc"));         // "weak"\nconsole.log(passwordStrength("hello123"));     // "medium"\nconsole.log(passwordStrength("Secure1!"));     // "strong"`,
+    tests: [
+      { input: '"abc"', fn: c => { try { return new Function(c+';return passwordStrength("abc");')() === 'weak'; } catch(e){return false;} } },
+      { input: '"hello123"', fn: c => { try { return new Function(c+';return passwordStrength("hello123");')() === 'medium'; } catch(e){return false;} } },
+      { input: '"Secure1!"', fn: c => { try { return new Function(c+';return passwordStrength("Secure1!");')() === 'strong'; } catch(e){return false;} } },
+    ],
+  },
+
+  /* ── STAGE 3: Arrays & Objects ── */
+  {
+    id: 'ch9', diff: 'medium', xp: 35,
+    title: 'Product Filter',
+    scenario: '🛍️ An online store needs to filter products by category and max price.',
+    task: 'Write `filterProducts(products, category, maxPrice)` returning matching products.',
+    requirements: [
+      'Takes array of {name, category, price} objects',
+      'Filter by matching category (case-insensitive)',
+      'Filter by price <= maxPrice',
+      'Returns filtered array',
+    ],
+    hint: 'Use .filter() and check both category.toLowerCase() and price conditions.',
+    solution: `function filterProducts(products, category, maxPrice) {\n  return products.filter(p =>\n    p.category.toLowerCase() === category.toLowerCase() && p.price <= maxPrice\n  );\n}`,
+    starter: `function filterProducts(products, category, maxPrice) {\n  // Return filtered products\n}\n\nconst products = [\n  { name: "Laptop", category: "Electronics", price: 999 },\n  { name: "Shirt", category: "Clothing", price: 25 },\n  { name: "Phone", category: "Electronics", price: 499 },\n  { name: "Jeans", category: "Clothing", price: 60 },\n];\n\nconsole.log(filterProducts(products, "Electronics", 500));\n// [{ name: "Phone", ... }]`,
+    tests: [
+      { input: 'Electronics ≤ 500', fn: c => { try { const p=[{name:"L",category:"Electronics",price:999},{name:"Ph",category:"Electronics",price:499}]; return new Function(c+`;return filterProducts(${JSON.stringify(p)},"Electronics",500).length;`)() === 1; } catch(e){return false;} } },
+      { input: 'Clothing ≤ 100', fn: c => { try { const p=[{name:"S",category:"Clothing",price:25},{name:"J",category:"Clothing",price:60}]; return new Function(c+`;return filterProducts(${JSON.stringify(p)},"Clothing",100).length;`)() === 2; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch8', num: '#08', diff: 'medium', title: 'Palindrome Check',
-    desc: 'Check if a string reads the same backwards',
-    task: 'Write `isPalindrome(s)` that returns true if the string is a palindrome (ignore case).',
-    requirements: ['Case insensitive comparison', 'Returns boolean', '"racecar" → true'],
-    tags: ['strings', 'arrays'],
-    hint: 'Convert to lowercase, then compare with reversed version.',
-    solution: `function isPalindrome(s) {\n  const clean = s.toLowerCase();\n  return clean === clean.split("").reverse().join("");\n}\nconsole.log(isPalindrome("racecar")); // true`,
-    starter: `function isPalindrome(s) {\n  // your code here\n}\n\nconsole.log(isPalindrome("racecar")); // true\nconsole.log(isPalindrome("hello"));   // false\nconsole.log(isPalindrome("Madam"));   // true`,
-    test: code => { try { const fn = new Function(code + '; return isPalindrome("racecar")===true && isPalindrome("hello")===false;'); return fn(); } catch(e) { return false; } }
+    id: 'ch10', diff: 'medium', xp: 35,
+    title: 'Grade Book',
+    scenario: '📊 A teacher wants a summary of student grades — average, highest, and lowest.',
+    task: 'Write `gradeBook(students)` returning {average, highest, lowest} from an array of {name, score}.',
+    requirements: [
+      'Takes array of {name, score} objects',
+      'Returns object with average, highest, lowest',
+      'Average rounded to 1 decimal',
+      'highest/lowest are the score values',
+    ],
+    hint: 'Use .map() to extract scores, then Math.max/min and reduce for average.',
+    solution: `function gradeBook(students) {\n  const scores = students.map(s => s.score);\n  return {\n    average: Math.round(scores.reduce((a,b)=>a+b,0)/scores.length * 10)/10,\n    highest: Math.max(...scores),\n    lowest: Math.min(...scores)\n  };\n}`,
+    starter: `function gradeBook(students) {\n  // Return { average, highest, lowest }\n}\n\nconst class1 = [\n  { name: "Alice", score: 92 },\n  { name: "Bob", score: 78 },\n  { name: "Carol", score: 85 },\n];\n\nconsole.log(gradeBook(class1));\n// { average: 85, highest: 92, lowest: 78 }`,
+    tests: [
+      { input: 'average of [92,78,85]', fn: c => { try { const r=new Function(c+';return gradeBook([{name:"A",score:92},{name:"B",score:78},{name:"C",score:85}]);')(); return r.average===85&&r.highest===92&&r.lowest===78; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch9', num: '#09', diff: 'medium', title: 'Flatten Array',
-    desc: 'Flatten a nested array one level deep',
-    task: 'Write `flattenOnce(arr)` that flattens a nested array one level deep.',
-    requirements: ['Returns flat array', 'Only one level', '[[1,2],[3,4]] → [1,2,3,4]'],
-    tags: ['arrays'],
-    hint: 'Try Array.prototype.flat(1) or use reduce with concat.',
-    solution: `function flattenOnce(arr) {\n  return arr.flat(1);\n}\nconsole.log(flattenOnce([[1,2],[3,4]]));`,
-    starter: `function flattenOnce(arr) {\n  // your code here\n}\n\nconsole.log(flattenOnce([[1,2],[3,4]]));        // [1,2,3,4]\nconsole.log(flattenOnce([[1],[2,3],[4,5,6]])); // [1,2,3,4,5,6]`,
-    test: code => { try { const fn = new Function(code + '; const r=flattenOnce([[1,2],[3,4]]); return r.join(",")===\\"1,2,3,4\\";'); return fn(); } catch(e) { return false; } }
+    id: 'ch11', diff: 'medium', xp: 35,
+    title: 'Word Frequency',
+    scenario: '📝 A text analysis tool needs to count how often each word appears in a sentence.',
+    task: 'Write `wordFrequency(text)` returning an object with each word as key and its count as value. Case-insensitive.',
+    requirements: [
+      'Split text by spaces',
+      'Case-insensitive (convert to lowercase)',
+      'Returns {word: count, ...} object',
+      'Ignore punctuation is optional (bonus)',
+    ],
+    hint: 'Split on spaces, lowercase each word, build object: obj[word] = (obj[word] || 0) + 1',
+    solution: `function wordFrequency(text) {\n  return text.toLowerCase().split(' ').reduce((obj, word) => {\n    obj[word] = (obj[word] || 0) + 1;\n    return obj;\n  }, {});\n}`,
+    starter: `function wordFrequency(text) {\n  // Count word occurrences\n}\n\nconst text = "the cat sat on the mat the cat";\nconsole.log(wordFrequency(text));\n// { the: 3, cat: 2, sat: 1, on: 1, mat: 1 }`,
+    tests: [
+      { input: '"the cat the"', fn: c => { try { const r=new Function(c+';return wordFrequency("the cat the");')(); return r.the===2&&r.cat===1; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch10', num: '#10', diff: 'medium', title: 'Object from Arrays',
-    desc: 'Combine two arrays into an object',
-    task: 'Write `zipToObject(keys, values)` that creates an object pairing keys[i] with values[i].',
-    requirements: ['Returns an object', 'keys and values are arrays', 'keys[0] maps to values[0]'],
-    tags: ['objects', 'arrays'],
-    hint: 'Use reduce() or a for loop with bracket notation: obj[key] = value.',
-    solution: `function zipToObject(keys, values) {\n  return keys.reduce((obj, key, i) => {\n    obj[key] = values[i];\n    return obj;\n  }, {});\n}\nconsole.log(zipToObject(["a","b","c"],[1,2,3]));`,
-    starter: `function zipToObject(keys, values) {\n  // your code here\n}\n\nconsole.log(zipToObject(["a","b","c"], [1,2,3]));\n// { a: 1, b: 2, c: 3 }`,
-    test: code => { try { const fn = new Function(code + '; const r=zipToObject(["a","b"],[1,2]); return r.a===1&&r.b===2;'); return fn(); } catch(e) { return false; } }
+    id: 'ch12', diff: 'hard', xp: 50,
+    title: 'Inventory Manager',
+    scenario: '📦 A warehouse app needs to manage stock. Implement add, remove, and total-value functions.',
+    task: 'Write a `createInventory()` factory that returns an object with: add(item), remove(name), totalValue(), list().',
+    requirements: [
+      'add({name, price, qty}) — adds or updates item',
+      'remove(name) — removes item by name',
+      'totalValue() — returns sum of (price * qty)',
+      'list() — returns array of all items',
+    ],
+    hint: 'Store items in a closure array. Use find() to check for existing items.',
+    solution: `function createInventory() {\n  const items = [];\n  return {\n    add(item) {\n      const ex = items.find(i => i.name === item.name);\n      if (ex) { ex.qty += item.qty; } else { items.push({...item}); }\n    },\n    remove(name) {\n      const idx = items.findIndex(i => i.name === name);\n      if (idx > -1) items.splice(idx, 1);\n    },\n    totalValue() { return items.reduce((s,i) => s + i.price*i.qty, 0); },\n    list() { return [...items]; }\n  };\n}`,
+    starter: `function createInventory() {\n  // Return an object with add, remove, totalValue, list\n}\n\nconst inv = createInventory();\ninv.add({ name: "Widget", price: 5, qty: 10 });\ninv.add({ name: "Gadget", price: 20, qty: 3 });\nconsole.log(inv.totalValue()); // 110\nconsole.log(inv.list().length); // 2\ninv.remove("Widget");\nconsole.log(inv.list().length); // 1`,
+    tests: [
+      { input: 'totalValue after add', fn: c => { try { const r=new Function(c+';const i=createInventory();i.add({name:"A",price:5,qty:10});i.add({name:"B",price:20,qty:3});return i.totalValue();')(); return r===110; } catch(e){return false;} } },
+      { input: 'list after remove', fn: c => { try { const r=new Function(c+';const i=createInventory();i.add({name:"A",price:5,qty:2});i.remove("A");return i.list().length;')(); return r===0; } catch(e){return false;} } },
+    ],
+  },
+
+  /* ── STAGE 4: Advanced Patterns ── */
+  {
+    id: 'ch13', diff: 'medium', xp: 40,
+    title: 'Memoize Function',
+    scenario: '⚡ A data-heavy app runs expensive calculations. Caching results speeds it up dramatically.',
+    task: 'Write `memoize(fn)` that returns a version of fn that caches results by its arguments.',
+    requirements: [
+      'Returns a new function',
+      'Calls fn only once per unique input',
+      'Returns cached result on repeated calls',
+      'Works with single argument',
+    ],
+    hint: 'Use a closure with a Map or plain object as cache. Key = String(arg).',
+    solution: `function memoize(fn) {\n  const cache = {};\n  return function(arg) {\n    if (arg in cache) return cache[arg];\n    cache[arg] = fn(arg);\n    return cache[arg];\n  };\n}`,
+    starter: `function memoize(fn) {\n  // Cache results\n}\n\nlet callCount = 0;\nconst expensiveDouble = memoize(n => { callCount++; return n * 2; });\n\nconsole.log(expensiveDouble(5));  // 10\nconsole.log(expensiveDouble(5));  // 10 (from cache)\nconsole.log(expensiveDouble(3));  // 6\nconsole.log("fn called:", callCount); // 2 (not 3!)`,
+    tests: [
+      { input: 'caches repeated calls', fn: c => { try { let n=0; const m=new Function(c+';return memoize(x=>{n++;return x*2;});')(); m(5);m(5);m(3); return n===2; } catch(e){return false;} } },
+      { input: 'returns correct values', fn: c => { try { const m=new Function(c+';return memoize(x=>x*2);')(); return m(5)===10&&m(3)===6; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch11', num: '#11', diff: 'medium', title: 'Count Occurrences',
-    desc: 'Count how many times each item appears',
-    task: 'Write `countOccurrences(arr)` that returns an object with each element as a key and its count as the value.',
-    requirements: ['Returns an object', 'Each key is an array element', 'Value is the count'],
-    tags: ['objects', 'arrays', 'loops'],
-    hint: 'Loop through array, use obj[item] = (obj[item] || 0) + 1.',
-    solution: `function countOccurrences(arr) {\n  return arr.reduce((acc, item) => {\n    acc[item] = (acc[item] || 0) + 1;\n    return acc;\n  }, {});\n}\nconsole.log(countOccurrences(["a","b","a","c","b","a"]));`,
-    starter: `function countOccurrences(arr) {\n  // your code here\n}\n\nconsole.log(countOccurrences(["a","b","a","c","b","a"]));\n// { a: 3, b: 2, c: 1 }`,
-    test: code => { try { const fn = new Function(code + '; const r=countOccurrences(["a","b","a"]); return r.a===2&&r.b===1;'); return fn(); } catch(e) { return false; } }
+    id: 'ch14', diff: 'medium', xp: 40,
+    title: 'Event Emitter',
+    scenario: '📡 Build a simple pub/sub system — the foundation of event-driven JavaScript.',
+    task: 'Write `createEmitter()` returning an object with on(event, fn), off(event, fn), emit(event, data).',
+    requirements: [
+      'on(event, fn) — registers listener',
+      'emit(event, data) — calls all listeners',
+      'off(event, fn) — removes listener',
+      'Multiple listeners per event',
+    ],
+    hint: 'Store listeners as { eventName: [fn1, fn2] }. Use filter() in off().',
+    solution: `function createEmitter() {\n  const listeners = {};\n  return {\n    on(event, fn) { (listeners[event] = listeners[event]||[]).push(fn); },\n    off(event, fn) { if(listeners[event]) listeners[event]=listeners[event].filter(f=>f!==fn); },\n    emit(event, data) { (listeners[event]||[]).forEach(fn=>fn(data)); }\n  };\n}`,
+    starter: `function createEmitter() {\n  // Build the event emitter\n}\n\nconst emitter = createEmitter();\nconst log = (data) => console.log("Received:", data);\n\nemitter.on("message", log);\nemitter.emit("message", "Hello!"); // "Received: Hello!"\nemitter.off("message", log);\nemitter.emit("message", "Ignored"); // nothing printed`,
+    tests: [
+      { input: 'emits events', fn: c => { try { let got=null; const e=new Function(c+';return createEmitter();')(); e.on("x",d=>{got=d;}); e.emit("x","hi"); return got==="hi"; } catch(e){return false;} } },
+      { input: 'off removes listener', fn: c => { try { let count=0; const e=new Function(c+';return createEmitter();')(); const fn=()=>count++; e.on("x",fn);e.emit("x");e.off("x",fn);e.emit("x"); return count===1; } catch(e){return false;} } },
+    ],
   },
   {
-    id: 'ch12', num: '#12', diff: 'medium', title: 'Debounce Function',
-    desc: 'Create a classic utility function used everywhere in JS',
-    task: 'Write a `debounce(fn, delay)` function that returns a new function that only calls fn after delay ms of inactivity.',
-    requirements: ['Returns a new function', 'Delays execution', 'Cancels previous timer on re-call'],
-    tags: ['functions', 'closures', 'timers'],
-    hint: 'Use setTimeout and clearTimeout. Store the timer in a closure variable.',
-    solution: `function debounce(fn, delay) {\n  let timer;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() => fn(...args), delay);\n  };\n}\nconst log = debounce((msg) => console.log(msg), 300);\nlog("typing..."); log("typing..."); log("done!");`,
-    starter: `function debounce(fn, delay) {\n  // your code here\n}\n\nconst log = debounce((msg) => console.log(msg), 300);\nlog("typing...");\nlog("typing...");\nlog("done!"); // only this should execute`,
-    test: code => { try { new Function(code)(); return true; } catch(e) { return false; } }
+    id: 'ch15', diff: 'hard', xp: 50,
+    title: 'Deep Clone',
+    scenario: '🔬 State management requires deep cloning objects so mutations don\'t affect the original.',
+    task: 'Write `deepClone(obj)` that creates a full deep copy — no shared references for nested objects/arrays.',
+    requirements: [
+      'Handles nested objects',
+      'Handles arrays',
+      'Handles primitives',
+      'Original is not modified by changes to clone',
+    ],
+    hint: 'Recursively check: if Array.isArray → map+recurse; if object → reduce keys+recurse; else return value.',
+    solution: `function deepClone(obj) {\n  if (obj === null || typeof obj !== 'object') return obj;\n  if (Array.isArray(obj)) return obj.map(deepClone);\n  return Object.fromEntries(Object.entries(obj).map(([k,v]) => [k, deepClone(v)]));\n}`,
+    starter: `function deepClone(obj) {\n  // Create a deep copy of obj\n}\n\nconst original = { name: "Alice", scores: [90, 85], address: { city: "NYC" } };\nconst clone = deepClone(original);\n\nclone.name = "Bob";\nclone.scores.push(100);\nclone.address.city = "LA";\n\nconsole.log(original.name);         // "Alice" (unchanged)\nconsole.log(original.scores.length); // 2 (unchanged)\nconsole.log(original.address.city);  // "NYC" (unchanged)`,
+    tests: [
+      { input: 'nested object unchanged', fn: c => { try { const r=new Function(c+';const o={a:{b:1}};const cl=deepClone(o);cl.a.b=99;return o.a.b;')(); return r===1; } catch(e){return false;} } },
+      { input: 'nested array unchanged', fn: c => { try { const r=new Function(c+';const o={arr:[1,2,3]};const cl=deepClone(o);cl.arr.push(4);return o.arr.length;')(); return r===3; } catch(e){return false;} } },
+    ],
+  },
+  {
+    id: 'ch16', diff: 'hard', xp: 50,
+    title: 'Promise Chain',
+    scenario: '🌐 API calls return promises. Build a mini pipeline that processes data through async steps.',
+    task: 'Write `pipeline(...fns)` that takes functions and returns one function that runs them in sequence (left to right) passing each result to the next.',
+    requirements: [
+      'Takes any number of functions',
+      'Returns a single function',
+      'Output of each fn = input of next',
+      'Works like: pipeline(f, g, h)(x) = h(g(f(x)))',
+    ],
+    hint: 'Use reduce: fns.reduce((v, fn) => fn(v), initialValue)',
+    solution: `function pipeline(...fns) {\n  return (value) => fns.reduce((v, fn) => fn(v), value);\n}`,
+    starter: `function pipeline(...fns) {\n  // Return a function that chains the provided functions\n}\n\nconst process = pipeline(\n  x => x * 2,\n  x => x + 10,\n  x => x.toString()\n);\n\nconsole.log(process(5));  // "20"  (5*2=10, 10+10=20, "20")\nconsole.log(process(0));  // "10"`,
+    tests: [
+      { input: 'pipeline(x=>x*2, x=>x+10)(5)', fn: c => { try { return new Function(c+';return pipeline(x=>x*2, x=>x+10)(5);')() === 20; } catch(e){return false;} } },
+      { input: 'pipeline(x=>x.toString())(42)', fn: c => { try { return new Function(c+';return pipeline(x=>x.toString())(42);')() === "42"; } catch(e){return false;} } },
+    ],
   },
 ];
 
 /* ============================================================
-   14. RENDER CHALLENGES
+   14. RENDER PRACTICE (Stage Map + Challenges)
 ============================================================ */
-function renderChallenges() {
-  const list = document.getElementById('challenges-list');
-  list.innerHTML = CHALLENGES.map((ch, i) => `
-    <div class="challenge-card ${state.completedChallenges.includes(ch.id) ? 'done' : ''}"
-         onclick="openChallenge('${ch.id}')" style="animation-delay:${i*0.05}s">
-      <div class="challenge-header">
-        <span class="challenge-num">${ch.num}</span>
-        <span class="challenge-diff ch-${ch.diff}">${ch.diff}</span>
-      </div>
-      <div class="challenge-title">${ch.title} ${state.completedChallenges.includes(ch.id) ? '✅' : ''}</div>
-      <div class="challenge-desc">${ch.desc}</div>
-      <div class="challenge-tags">${ch.tags.map(t => `<span class="challenge-tag">${t}</span>`).join('')}</div>
-    </div>
-  `).join('');
+
+// Track which stage is currently open
+let currentStageId = null;
+
+function isStageUnlocked(stage) {
+  if (!stage.unlockAfter) return true;
+  const prev = PRACTICE_STAGES.find(s => s.id === stage.unlockAfter);
+  if (!prev) return true;
+  return prev.challengeIds.every(id => state.completedChallenges.includes(id));
 }
 
-function openChallenge(id) {
+function stageProgress(stage) {
+  return stage.challengeIds.filter(id => state.completedChallenges.includes(id)).length;
+}
+
+function renderPracticeStageMap() {
+  document.getElementById('practice-stage-challenges').classList.add('hidden');
+  document.getElementById('challenge-panel').classList.remove('open');
+  currentStageId = null;
+
+  const container = document.getElementById('practice-stage-map');
+  container.classList.remove('hidden');
+
+  const total = CHALLENGES.length;
+  const done = state.completedChallenges.length;
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.3rem">Overall Progress</div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div style="width:200px;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+            <div style="width:${(done/total)*100}%;height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));border-radius:4px;transition:width 0.6s"></div>
+          </div>
+          <span style="font-size:0.85rem;font-weight:700;color:var(--accent)">${done}/${total} solved</span>
+        </div>
+      </div>
+      <div style="font-size:0.85rem;color:var(--text-muted)">⚡ Earn XP by solving challenges</div>
+    </div>
+    <div class="stage-map">
+      ${PRACTICE_STAGES.map((stage, i) => {
+        const unlocked = isStageUnlocked(stage);
+        const progress = stageProgress(stage);
+        const total = stage.challengeIds.length;
+        const completed = progress === total;
+        const statusClass = !unlocked ? 'stage-locked' : completed ? 'stage-completed' : 'stage-active';
+        const badge = !unlocked ? '🔒 Locked' : completed ? '✅ Done' : `${progress}/${total}`;
+        const badgeClass = !unlocked ? 'badge-locked' : completed ? 'badge-done' : 'badge-active';
+        return `
+          ${i > 0 ? '<div class="stage-connector"></div>' : ''}
+          <div class="stage-row ${statusClass}"
+               style="--stage-color:${stage.color};--stage-color-bg:${stage.colorBg}"
+               onclick="${unlocked ? `openStage('${stage.id}')` : `showToast('🔒 Complete Stage ${i} first!','info')`}">
+            <div class="stage-num">${stage.icon}</div>
+            <div class="stage-info">
+              <div class="stage-name">Stage ${stage.num}: ${stage.name}</div>
+              <div class="stage-desc">${stage.desc}</div>
+              <div class="stage-meta">
+                <span class="stage-pill ${completed?'done':''}">${total} challenges</span>
+                <div class="stage-progress-mini">
+                  ${stage.challengeIds.map(id => `<div class="stage-dot ${state.completedChallenges.includes(id)?'done':id===stage.challengeIds[progress]&&unlocked?'active':''}"></div>`).join('')}
+                </div>
+              </div>
+            </div>
+            <span class="stage-badge ${badgeClass}">${badge}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function openStage(stageId) {
+  currentStageId = stageId;
+  playSound('click');
+  const stage = PRACTICE_STAGES.find(s => s.id === stageId);
+  if (!stage) return;
+
+  document.getElementById('practice-stage-map').classList.add('hidden');
+  const stageDiv = document.getElementById('practice-stage-challenges');
+  stageDiv.classList.remove('hidden');
+
+  const challenges = stage.challengeIds.map(id => CHALLENGES.find(c => c.id === id)).filter(Boolean);
+
+  stageDiv.innerHTML = `
+    <button class="back-btn" onclick="renderPracticeStageMap()">← Back to Stages</button>
+    <div class="stage-challenges-header">
+      <div class="stage-challenges-icon">${stage.icon}</div>
+      <div>
+        <div class="stage-challenges-title">Stage ${stage.num}: ${stage.name}</div>
+        <div class="stage-challenges-sub">${stage.desc} · ${stageProgress(stage)}/${stage.challengeIds.length} completed</div>
+      </div>
+    </div>
+    <div class="challenges-grid-new">
+      ${challenges.map(ch => {
+        const solved = state.completedChallenges.includes(ch.id);
+        return `
+          <div class="ch-card-new ${solved?'ch-solved':''}"
+               style="--ch-color:${stage.color}"
+               onclick="openChallenge('${ch.id}','${stageId}')">
+            <div class="ch-card-top">
+              <div class="ch-card-title">${ch.title}</div>
+              ${solved ? '<div class="ch-solved-badge">✓</div>' : ''}
+            </div>
+            <div class="ch-card-scenario">${ch.scenario}</div>
+            <div class="ch-card-footer">
+              <span class="ch-diff-tag diff-${ch.diff}">${ch.diff}</span>
+              <span class="ch-xp-tag">⚡ ${ch.xp} XP</span>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function openChallenge(id, stageId) {
   const ch = CHALLENGES.find(c => c.id === id);
-  if (!ch) return;
+  const stage = PRACTICE_STAGES.find(s => s.id === stageId);
+  if (!ch || !stage) return;
   playSound('click');
 
-  document.getElementById('challenges-list').style.display = 'none';
+  document.getElementById('practice-stage-challenges').classList.add('hidden');
   const panel = document.getElementById('challenge-panel');
   panel.classList.add('open');
 
+  const solved = state.completedChallenges.includes(id);
+
   panel.querySelector('#challenge-content').innerHTML = `
-    <div class="challenge-header" style="margin-bottom:1rem">
-      <span class="challenge-num" style="font-size:1rem">${ch.num}</span>
-      <span class="challenge-diff ch-${ch.diff}">${ch.diff}</span>
+    <div class="solver-header">
+      <div class="solver-title">${ch.title}</div>
+      <div class="solver-meta">
+        <span class="ch-diff-tag diff-${ch.diff}">${ch.diff}</span>
+        <span class="ch-xp-tag">⚡ ${ch.xp} XP</span>
+        ${solved ? '<span style="background:rgba(78,205,196,0.12);color:var(--accent3);padding:0.2rem 0.65rem;border-radius:10px;font-size:0.78rem;font-weight:700">✅ Solved</span>' : ''}
+      </div>
     </div>
-    <h2 style="font-family:Syne;font-size:1.8rem;font-weight:800;margin-bottom:1.5rem">${ch.title}</h2>
-    <div class="challenge-layout">
-      <div class="challenge-left">
-        <div class="ch-task">
-          <h4>📋 Task</h4>
+    <div class="solver-layout">
+      <div class="solver-left">
+        <!-- Scenario -->
+        <div class="solver-card">
+          <div class="solver-card-title">🎬 Scenario</div>
+          <div class="scenario-box">${ch.scenario}</div>
+        </div>
+        <!-- Task -->
+        <div class="solver-card">
+          <div class="solver-card-title">📋 Your Task</div>
           <p>${ch.task}</p>
         </div>
-        <div class="ch-task">
-          <h4>✅ Requirements</h4>
+        <!-- Requirements -->
+        <div class="solver-card">
+          <div class="solver-card-title">✅ Requirements</div>
           <ul>${ch.requirements.map(r => `<li>${r}</li>`).join('')}</ul>
         </div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="toggleHint('hint-${id}')">💡 Show Hint</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleSolution('sol-${id}')">👁 Show Solution</button>
+        <!-- Test Cases -->
+        <div class="solver-card">
+          <div class="solver-card-title">🧪 Test Cases</div>
+          <div class="test-cases" id="tc-list-${id}">
+            ${ch.tests.map((t, i) => `
+              <div class="test-case" id="tc-${id}-${i}">
+                <span class="test-case-input">${t.input}</span>
+                <span class="test-case-status" id="ts-${id}-${i}">⏳</span>
+              </div>
+            `).join('')}
+          </div>
         </div>
-        <div class="hint-section" id="hint-${id}">
-          <div class="ch-task"><h4>💡 Hint</h4><p>${ch.hint}</p></div>
-        </div>
-        <div class="solution-section" id="sol-${id}">
-          <div class="code-example">
-            <div class="code-example-header">
-              <span class="code-lang">solution</span>
-            </div>
-            <pre class="code-block">${ch.solution}</pre>
+        <!-- Hint & Solution -->
+        <div class="solver-card">
+          <div class="solver-card-title">🛠️ Help</div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="hint-toggle-btn" onclick="togglePracticeHint('ph-${id}')">💡 Show Hint</button>
+            <button class="solution-toggle-btn" onclick="togglePracticeHint('ps-${id}')">👁 Show Solution</button>
+          </div>
+          <div class="hint-content" id="ph-${id}">${ch.hint}</div>
+          <div class="hint-content" id="ps-${id}" style="border-color:rgba(168,85,247,0.2);background:rgba(168,85,247,0.06)">
+            <pre style="font-family:'Fira Code';font-size:0.82rem;white-space:pre-wrap;color:var(--text-muted)">${ch.solution}</pre>
           </div>
         </div>
       </div>
-      <div class="challenge-right">
-        <div class="try-it-section">
-          <div class="try-it-header">
-            <span class="try-it-title">✏️ Your Code</span>
-            <div class="try-it-actions">
-              <button class="btn btn-sm btn-primary" onclick="runChallenge('${id}')">▶ Run & Test</button>
-              <button class="btn btn-sm btn-ghost" onclick="resetChallenge('${id}')">↺ Reset</button>
+      <div class="solver-right">
+        <div class="editor-wrapper">
+          <div class="editor-header">
+            <span class="editor-label">✏️ Code Editor</span>
+            <div class="editor-actions">
+              <button class="btn btn-sm btn-primary" onclick="runPracticeChallenge('${id}')">▶ Run & Test</button>
+              <button class="btn btn-sm btn-ghost" onclick="resetPracticeChallenge('${id}')">↺ Reset</button>
             </div>
           </div>
-          <textarea class="code-editor" id="ch-editor-${id}" spellcheck="false">${ch.starter}</textarea>
-          <div class="output-panel" id="ch-out-${id}">// Click Run & Test to check your solution...</div>
+          <textarea class="code-editor" id="pe-editor-${id}" spellcheck="false" style="min-height:280px">${ch.starter}</textarea>
+          <div class="run-result" id="pe-out-${id}">// Output appears here after running...</div>
         </div>
       </div>
     </div>
@@ -918,7 +1298,12 @@ function openChallenge(id) {
 }
 
 function closeChallengePanel() {
-  document.getElementById('challenges-list').style.display = '';
+  const stageDiv = document.getElementById('practice-stage-challenges');
+  if (currentStageId) {
+    stageDiv.classList.remove('hidden');
+  } else {
+    document.getElementById('practice-stage-map').classList.remove('hidden');
+  }
   document.getElementById('challenge-panel').classList.remove('open');
 }
 
@@ -926,53 +1311,74 @@ document.getElementById('back-to-challenges').addEventListener('click', () => {
   closeChallengePanel(); playSound('click');
 });
 
-function toggleHint(id) {
+function togglePracticeHint(id) {
   document.getElementById(id)?.classList.toggle('open');
 }
 
-function toggleSolution(id) {
-  document.getElementById(id)?.classList.toggle('open');
-}
-
-function runChallenge(id) {
-  const ch = CHALLENGES.find(c => c.id === id);
-  const code = document.getElementById(`ch-editor-${id}`)?.value || '';
-  const out = document.getElementById(`ch-out-${id}`);
-  if (!out) return;
+function safeRunCode(code) {
   let logs = [];
   const orig = console.log;
   console.log = (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
-  let passed = false;
-  try {
-    new Function(code)();
-    passed = ch.test(code);
-    out.className = `output-panel ${passed ? '' : 'error'}`;
-    out.textContent = (logs.length ? logs.join('\n') + '\n\n' : '') + (passed ? '✅ Tests passed! Great job!' : '❌ Tests failed. Check your logic.');
-  } catch(e) {
-    out.textContent = '❌ Error: ' + e.message;
-    out.className = 'output-panel error';
-  }
+  let error = null;
+  try { new Function(code)(); } catch(e) { error = e.message; }
   console.log = orig;
+  return { logs, error };
+}
 
-  if (passed && !state.completedChallenges.includes(id)) {
-    state.completedChallenges.push(id);
-    addXP(25, ch.title);
-    saveState();
+function runPracticeChallenge(id) {
+  const ch = CHALLENGES.find(c => c.id === id);
+  if (!ch) return;
+  const code = document.getElementById(`pe-editor-${id}`)?.value || '';
+  const outEl = document.getElementById(`pe-out-${id}`);
+
+  const { logs, error } = safeRunCode(code);
+
+  if (error) {
+    outEl.textContent = '❌ Error: ' + error;
+    outEl.className = 'run-result error';
+    playSound('wrong');
+    return;
+  }
+
+  // Run tests
+  let passCount = 0;
+  ch.tests.forEach((t, i) => {
+    const tcEl = document.getElementById(`tc-${id}-${i}`);
+    const tsEl = document.getElementById(`ts-${id}-${i}`);
+    const passed = t.fn(code);
+    if (tcEl) tcEl.className = `test-case ${passed ? 'pass' : 'fail'}`;
+    if (tsEl) tsEl.textContent = passed ? '✅' : '❌';
+    if (passed) passCount++;
+  });
+
+  const allPassed = passCount === ch.tests.length;
+  outEl.textContent = (logs.length ? logs.join('\n') + '\n\n' : '')
+    + (allPassed ? `✅ All ${ch.tests.length} tests passed! Amazing work!` : `⚠️ ${passCount}/${ch.tests.length} tests passed. Keep going!`);
+  outEl.className = `run-result ${allPassed ? 'success' : 'error'}`;
+
+  if (allPassed) {
     playSound('success');
-    showToast(`✅ Challenge "${ch.title}" solved!`, 'success');
-    renderChallenges();
-    addConfetti();
-  } else if (passed) {
-    playSound('click');
+    if (!state.completedChallenges.includes(id)) {
+      state.completedChallenges.push(id);
+      addXP(ch.xp, ch.title);
+      saveState();
+      showToast(`🎉 "${ch.title}" solved! +${ch.xp} XP`, 'success');
+      addConfetti();
+      // Re-render stage map dots
+      if (currentStageId) openStage(currentStageId);
+    }
   } else {
     playSound('wrong');
   }
 }
 
-function resetChallenge(id) {
+function resetPracticeChallenge(id) {
   const ch = CHALLENGES.find(c => c.id === id);
-  if (ch) document.getElementById(`ch-editor-${id}`).value = ch.starter;
+  if (ch) document.getElementById(`pe-editor-${id}`).value = ch.starter;
 }
+
+// Legacy alias kept so init() doesn't break
+function renderChallenges() { renderPracticeStageMap(); }
 
 /* ============================================================
    15. GAMES SECTION
@@ -1384,170 +1790,528 @@ function renderSpeedQuiz(container) {
 }
 
 /* ============================================================
-   21. QUIZ SECTION
+   21. QUIZ SECTION — REVAMPED
 ============================================================ */
-const QUIZ_QUESTIONS = {
-  all: [
-    { topic: 'variables', q: 'Which keyword cannot be reassigned?', options: ['var','let','const','function'], ans: 2, exp: 'const creates a read-only reference. Once assigned, it cannot be reassigned.' },
-    { topic: 'variables', q: 'What is the scope of a let variable?', options: ['Global','Function','Block','Module'], ans: 2, exp: 'let is block-scoped, meaning it is limited to the block it is declared in.' },
-    { topic: 'datatypes', q: 'What does typeof null return?', options: ['"null"','"undefined"','"object"','"boolean"'], ans: 2, exp: 'This is a well-known JS quirk! typeof null returns "object" due to a historic bug.' },
-    { topic: 'datatypes', q: 'Which is NOT a primitive type?', options: ['String','Number','Array','Boolean'], ans: 2, exp: 'Arrays are objects (reference types), not primitives.' },
-    { topic: 'functions', q: 'Arrow functions do NOT have their own:', options: ['return','arguments','this','none'], ans: 2, exp: 'Arrow functions do not have their own `this` context — they inherit it from the surrounding scope.' },
-    { topic: 'functions', q: 'What is a closure?', options: ['A broken function','A function + its outer scope','A class method','An IIFE'], ans: 1, exp: 'A closure is a function that retains access to variables from its outer (enclosing) scope.' },
-    { topic: 'loops', q: 'Which loop always executes at least once?', options: ['for','while','do...while','for...of'], ans: 2, exp: 'do...while checks the condition AFTER execution, so it always runs at least once.' },
-    { topic: 'loops', q: 'What does break do in a loop?', options: ['Pauses','Skips current iteration','Exits the loop','Throws error'], ans: 2, exp: 'break immediately terminates the loop and continues after the loop block.' },
-    { topic: 'arrays', q: 'Which method creates a new array without modifying the original?', options: ['push','pop','map','splice'], ans: 2, exp: 'map() returns a new array; it does not modify the original array.' },
-    { topic: 'arrays', q: 'What does arr.indexOf("x") return if "x" is not found?', options: ['0','null','undefined','-1'], ans: 3, exp: 'indexOf() returns -1 when the element is not found in the array.' },
-    { topic: 'objects', q: 'How do you access property "name" of object obj?', options: ['obj->name','obj::name','obj.name or obj["name"]','get(obj, name)'], ans: 2, exp: 'Object properties can be accessed with dot notation (obj.name) or bracket notation (obj["name"]).' },
-    { topic: 'objects', q: 'What does Object.keys(obj) return?', options: ['Object values','Object methods','Array of property names','Object entries'], ans: 2, exp: 'Object.keys() returns an array containing all enumerable property names of the object.' },
-    { topic: 'dom', q: 'Which method selects the FIRST matching element?', options: ['getElementById','querySelectorAll','querySelector','getElementByClass'], ans: 2, exp: 'querySelector() returns the first element matching the given CSS selector.' },
-    { topic: 'dom', q: 'How do you add HTML to an element?', options: ['element.textContent','element.innerHTML','element.text','element.html'], ans: 1, exp: 'innerHTML allows you to get or set the HTML content inside an element.' },
-    { topic: 'events', q: 'Which is the correct way to add an event listener?', options: ['element.on("click", fn)','element.click = fn','element.addEventListener("click", fn)','element.listen("click", fn)'], ans: 2, exp: 'addEventListener() is the modern, correct way to attach event handlers to DOM elements.' },
-    { topic: 'events', q: 'What does event.preventDefault() do?', options: ['Stops bubbling','Stops default browser action','Removes listener','Pauses event'], ans: 1, exp: 'preventDefault() stops the default action associated with the event (e.g., form submit, link navigation).' },
-  ]
+
+// ---- Rich question bank with difficulty + code snippets ----
+const QUIZ_BANK = [
+  // EASY
+  { id:'q1', topic:'variables', diff:'easy', xp:5,
+    q:'Which keyword declares a variable that cannot be reassigned?',
+    options:['var','let','const','function'], ans:2,
+    exp:'`const` creates a read-only binding. Attempting to reassign it throws a TypeError at runtime.' },
+  { id:'q2', topic:'variables', diff:'easy', xp:5,
+    q:'What is the scope of a `let` variable declared inside an if-block?',
+    options:['Global scope','Function scope','Block scope','Module scope'], ans:2,
+    exp:'`let` (and `const`) are block-scoped — they only exist within the {} block they are declared in.' },
+  { id:'q3', topic:'datatypes', diff:'easy', xp:5,
+    q:'What does `typeof null` return in JavaScript?',
+    options:['"null"','"undefined"','"object"','"boolean"'], ans:2,
+    exp:'A classic JS quirk — `typeof null` returns "object". This is a historical bug in the language that was never fixed for backward compatibility.' },
+  { id:'q4', topic:'datatypes', diff:'easy', xp:5,
+    q:'Which of these is NOT a primitive type in JavaScript?',
+    options:['String','Number','Array','Boolean'], ans:2,
+    exp:'Arrays are objects (reference types), not primitives. The 7 primitives are: String, Number, BigInt, Boolean, Symbol, Null, Undefined.' },
+  { id:'q5', topic:'functions', diff:'easy', xp:5,
+    q:'What does a function return if there is no `return` statement?',
+    options:['0','null','undefined','false'], ans:2,
+    exp:'Functions with no return statement implicitly return `undefined`.' },
+  { id:'q6', topic:'loops', diff:'easy', xp:5,
+    q:'Which loop always executes its body at least once?',
+    options:['for','while','do...while','for...of'], ans:2,
+    exp:'`do...while` checks the condition AFTER executing the body — so it always runs at least once.' },
+  { id:'q7', topic:'arrays', diff:'easy', xp:5,
+    q:'Which array method does NOT modify the original array?',
+    options:['push()','pop()','map()','splice()'], ans:2,
+    exp:'`map()` returns a brand-new array. push, pop, and splice all mutate the original.' },
+  { id:'q8', topic:'arrays', diff:'easy', xp:5,
+    q:'What does `arr.indexOf("x")` return if "x" is not in the array?',
+    options:['0','null','undefined','-1'], ans:3,
+    exp:'`indexOf()` returns -1 when the element is not found. This is the standard sentinel value.' },
+  { id:'q9', topic:'objects', diff:'easy', xp:5,
+    q:'Which notation accesses a property when the key is stored in a variable?',
+    options:['obj.key','obj->key','obj[key]','obj::key'], ans:2,
+    exp:'Bracket notation `obj[variable]` evaluates the expression inside. Dot notation requires a literal property name.' },
+  { id:'q10', topic:'dom', diff:'easy', xp:5,
+    q:'Which method returns the FIRST element matching a CSS selector?',
+    options:['getElementById()','querySelectorAll()','querySelector()','getElementByClass()'], ans:2,
+    exp:'`querySelector()` returns the first matching element or null. `querySelectorAll()` returns a NodeList of all matches.' },
+
+  // MEDIUM
+  { id:'q11', topic:'functions', diff:'medium', xp:10,
+    q:'Arrow functions differ from regular functions because they:',
+    options:['Cannot return values','Have no `this` of their own','Cannot have parameters','Run faster'], ans:1,
+    exp:'Arrow functions inherit `this` from the enclosing lexical context. They do not create their own `this` binding — a key difference when used as methods.' },
+  { id:'q12', topic:'functions', diff:'medium', xp:10,
+    q:'What is a closure?',
+    options:['A sealed object','A function that retains access to its outer scope','A way to terminate loops','An ES6 class feature'], ans:1,
+    exp:'A closure is a function that "closes over" variables from its outer (enclosing) scope — even after that outer function has returned.' },
+  { id:'q13', topic:'arrays', diff:'medium', xp:10,
+    q:'What does this code output?\n`[1,2,3].reduce((acc, n) => acc + n, 0)`',
+    code:'[1, 2, 3].reduce((acc, n) => acc + n, 0)',
+    options:['[1,2,3]','123','6','undefined'], ans:2,
+    exp:'`reduce` accumulates values. Starting at 0: 0+1=1, 1+2=3, 3+3=6. The result is 6.' },
+  { id:'q14', topic:'objects', diff:'medium', xp:10,
+    q:'What does `Object.keys(obj)` return?',
+    options:['Object values array','Object methods only','Array of own enumerable property names','An iterator'], ans:2,
+    exp:'`Object.keys()` returns an array of a given object\'s own enumerable string-keyed property names.' },
+  { id:'q15', topic:'variables', diff:'medium', xp:10,
+    q:'What is "hoisting" in JavaScript?',
+    options:['Moving imports to top','var/function declarations moved to top of scope','A type coercion','A CSS property'], ans:1,
+    exp:'Hoisting means `var` declarations and function declarations are conceptually moved to the top of their scope during compilation — allowing them to be used before they appear in the code.' },
+  { id:'q16', topic:'loops', diff:'medium', xp:10,
+    q:'Which statement skips the current iteration and moves to the next?',
+    options:['break','return','continue','skip'], ans:2,
+    exp:'`continue` jumps to the next loop iteration, skipping the rest of the current body. `break` would exit the loop entirely.' },
+  { id:'q17', topic:'dom', diff:'medium', xp:10,
+    q:'What does `event.stopPropagation()` do?',
+    options:['Prevents default action','Stops event bubbling up','Removes the listener','Pauses all JS'], ans:1,
+    exp:'`stopPropagation()` prevents the event from bubbling up (or capturing down) to parent elements. It does not affect the default browser action — that is `preventDefault()`.' },
+  { id:'q18', topic:'events', diff:'medium', xp:10,
+    q:'Which addEventListener option makes a listener fire only once?',
+    options:['{ limit: 1 }','{ once: true }','{ single: true }','{ times: 1 }'], ans:1,
+    exp:'Passing `{ once: true }` as the third argument to addEventListener automatically removes the listener after it fires once.' },
+  { id:'q19', topic:'datatypes', diff:'medium', xp:10,
+    q:'What is the result of `"5" + 3` in JavaScript?',
+    options:['8','"53"','NaN','TypeError'], ans:1,
+    exp:'The `+` operator with a string triggers string concatenation. "5" + 3 → "53". To get 8, you would need `Number("5") + 3` or `+"5" + 3`.' },
+  { id:'q20', topic:'functions', diff:'medium', xp:10,
+    q:'What does the spread operator `...` do when used in a function call?',
+    code:'Math.max(...[1, 5, 3])',
+    options:['Creates a copy','Expands iterable into individual args','Merges objects','Destructures'], ans:1,
+    exp:'`...arr` in a function call spreads the array elements as individual arguments. `Math.max(...[1,5,3])` is equivalent to `Math.max(1, 5, 3)` → 5.' },
+
+  // HARD
+  { id:'q21', topic:'functions', diff:'hard', xp:20,
+    q:'What does this code output?',
+    code:`function makeCounter() {
+  let n = 0;
+  return () => ++n;
+}
+const c = makeCounter();
+console.log(c(), c(), c());`,
+    options:['0 1 2','1 1 1','1 2 3','undefined'], ans:2,
+    exp:'Each call to `c()` increments `n` via closure and returns the new value. n starts at 0 → 1 → 2 → 3.' },
+  { id:'q22', topic:'arrays', diff:'hard', xp:20,
+    q:'What is the output of this code?',
+    code:`const a = [1, 2, 3];
+const b = [...a];
+b.push(4);
+console.log(a.length, b.length);`,
+    options:['4 4','3 3','3 4','undefined'], ans:2,
+    exp:'`[...a]` creates a shallow copy of the array. Pushing to `b` does not affect `a`. a.length=3, b.length=4.' },
+  { id:'q23', topic:'objects', diff:'hard', xp:20,
+    q:'What logs to the console?',
+    code:`const obj = { x: 1 };
+const copy = Object.assign({}, obj);
+copy.x = 99;
+console.log(obj.x);`,
+    options:['99','1','undefined','Error'], ans:1,
+    exp:'`Object.assign` creates a shallow copy. Since `x` is a primitive (number), modifying `copy.x` does not affect `obj.x`. It remains 1.' },
+  { id:'q24', topic:'variables', diff:'hard', xp:20,
+    q:'What is the output?',
+    code:`console.log(typeof undeclaredVar);`,
+    options:['ReferenceError','"undefined"','"null"','"object"'], ans:1,
+    exp:'`typeof` is special — it does NOT throw a ReferenceError for undeclared variables. Instead it returns the string "undefined".' },
+  { id:'q25', topic:'dom', diff:'hard', xp:20,
+    q:'What is event delegation?',
+    options:[
+      'Removing event listeners',
+      'Listening on a parent to handle events from children',
+      'Using setTimeout for events',
+      'Preventing default actions'
+    ], ans:1,
+    exp:'Event delegation attaches a single listener to a parent element and uses `event.target` to detect which child triggered it. Efficient for dynamic lists.' },
+  { id:'q26', topic:'functions', diff:'hard', xp:20,
+    q:'What does `Function.prototype.bind()` do?',
+    options:[
+      'Calls the function immediately',
+      'Returns a new function with a fixed `this` value',
+      'Clones the function object',
+      'Makes function async'
+    ], ans:1,
+    exp:'`bind()` returns a NEW function where `this` is permanently set to the provided value, along with any pre-set arguments. Unlike `call/apply`, it does not invoke the function.' },
+];
+
+// ---- Quiz state ----
+let quizConfig = { topic: 'all', diff: 'all' };
+let activeQuiz = {
+  questions: [], idx: 0, score: 0, streak: 0, maxStreak: 0,
+  answers: [], timerInterval: null, qStartTime: 0,
 };
 
-let selectedQuizTopic = 'all';
-let currentQuiz = { questions: [], idx: 0, score: 0, answers: [] };
+const QUIZ_UNLOCK_THRESHOLD = 3; // need this many solved challenges
+
+function isQuizUnlocked() {
+  return state.completedChallenges.length >= QUIZ_UNLOCK_THRESHOLD;
+}
 
 function renderQuizSetup() {
-  const topics = [{ id: 'all', name: '🎯 All Topics' }, ...TOPICS.map(t => ({ id: t.id, name: `${t.icon} ${t.name}` }))];
-  const container = document.getElementById('quiz-topics');
-  if (!container) return;
-  container.innerHTML = topics.map(t => `
-    <button class="quiz-topic-btn ${selectedQuizTopic === t.id ? 'selected' : ''}"
-            onclick="selectQuizTopic('${t.id}', this)">${t.name}</button>
-  `).join('');
-  document.getElementById('quiz-setup').classList.remove('hidden');
-  document.getElementById('quiz-game').classList.add('hidden');
-  document.getElementById('quiz-results').classList.add('hidden');
-}
+  const lockEl = document.getElementById('quiz-locked');
+  const setupEl = document.getElementById('quiz-setup');
+  const gameEl = document.getElementById('quiz-game');
+  const resultsEl = document.getElementById('quiz-results');
 
-window.selectQuizTopic = function(id, btn) {
-  selectedQuizTopic = id;
-  document.querySelectorAll('.quiz-topic-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-};
+  gameEl.classList.add('hidden');
+  resultsEl.classList.add('hidden');
 
-document.getElementById('start-quiz-btn').addEventListener('click', startQuiz);
-
-function startQuiz() {
-  const allQ = QUIZ_QUESTIONS.all;
-  const pool = selectedQuizTopic === 'all' ? allQ : allQ.filter(q => q.topic === selectedQuizTopic);
-  if (!pool.length) { showToast('No questions for this topic yet!', 'info'); return; }
-  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(10, pool.length));
-  currentQuiz = { questions: shuffled, idx: 0, score: 0, answers: [] };
-  document.getElementById('quiz-setup').classList.add('hidden');
-  document.getElementById('quiz-results').classList.add('hidden');
-  document.getElementById('quiz-game').classList.remove('hidden');
-  renderQuizQuestion();
-  playSound('click');
-}
-
-function renderQuizQuestion() {
-  const { questions, idx } = currentQuiz;
-  if (idx >= questions.length) { showQuizResults(); return; }
-  const q = questions[idx];
-  const pct = (idx / questions.length) * 100;
-  document.getElementById('quiz-game').innerHTML = `
-    <div class="quiz-game-card">
-      <div class="quiz-progress">
-        <div class="quiz-progress-bar-wrap">
-          <div class="quiz-progress-bar" style="width:${pct}%"></div>
+  if (!isQuizUnlocked()) {
+    lockEl.classList.remove('hidden');
+    setupEl.classList.add('hidden');
+    const done = state.completedChallenges.length;
+    lockEl.innerHTML = `
+      <div class="quiz-lock-card">
+        <div class="quiz-lock-icon">🔒</div>
+        <div class="quiz-lock-title">Quiz Locked</div>
+        <div class="quiz-lock-sub">Solve at least <strong>${QUIZ_UNLOCK_THRESHOLD} Practice challenges</strong> to unlock the Quiz Arena. This ensures you have the fundamentals down first!</div>
+        <div class="quiz-lock-progress">
+          <div class="quiz-lock-bar-wrap">
+            <div class="quiz-lock-bar" style="width:${(done/QUIZ_UNLOCK_THRESHOLD)*100}%"></div>
+          </div>
+          <span class="quiz-lock-count">${done}/${QUIZ_UNLOCK_THRESHOLD}</span>
         </div>
-        <span class="quiz-count">${idx+1} / ${questions.length}</span>
+        <button class="btn btn-primary" onclick="goTo('practice')">Go to Practice ⚡</button>
       </div>
-      <div class="quiz-question">${q.q}</div>
-      <div class="quiz-options">
-        ${q.options.map((o, i) => `<button class="quiz-option" onclick="answerQuiz(${i})">${o}</button>`).join('')}
+    `;
+    return;
+  }
+
+  lockEl.classList.add('hidden');
+  setupEl.classList.remove('hidden');
+
+  const topicCounts = {};
+  QUIZ_BANK.forEach(q => {
+    topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1;
+  });
+  const allTopics = [
+    { id: 'all', name: '🎯 All Topics', count: QUIZ_BANK.length },
+    ...TOPICS.map(t => ({ id: t.id, name: `${t.icon} ${t.name}`, count: topicCounts[t.id] || 0 })).filter(t => t.count > 0)
+  ];
+
+  setupEl.innerHTML = `
+    <div class="quiz-setup-new">
+      <div class="quiz-setup-grid">
+        <!-- Topic selector -->
+        <div class="quiz-config-card">
+          <div class="quiz-config-title">📚 Choose Topic</div>
+          <div class="quiz-topic-grid">
+            ${allTopics.map(t => `
+              <button class="quiz-topic-opt ${quizConfig.topic === t.id ? 'selected' : ''}"
+                      onclick="setQuizTopic('${t.id}',this)">
+                ${t.name}<br><span style="font-size:0.7rem;opacity:0.6">${t.count}q</span>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <!-- Difficulty selector -->
+        <div class="quiz-config-card">
+          <div class="quiz-config-title">⚔️ Difficulty</div>
+          <div class="diff-opts">
+            ${[
+              { id:'all', icon:'🌟', name:'Mixed', desc:'Easy + Medium + Hard', xp:'5–20 XP/q', color:'#f7c948' },
+              { id:'easy', icon:'🌱', name:'Easy', desc:'Fundamentals & basics', xp:'5 XP/q', color:'#4ecdc4' },
+              { id:'medium', icon:'⚙️', name:'Medium', desc:'Applied concepts', xp:'10 XP/q', color:'#f7c948' },
+              { id:'hard', icon:'🔥', name:'Hard', desc:'Tricky edge cases', xp:'20 XP/q', color:'#ff6b6b' },
+            ].map(d => `
+              <div class="diff-opt ${quizConfig.diff === d.id ? 'selected' : ''}"
+                   style="--diff-color:${d.color}"
+                   onclick="setQuizDiff('${d.id}',this)">
+                <span class="diff-opt-icon">${d.icon}</span>
+                <div class="diff-opt-info">
+                  <div class="diff-opt-name">${d.name}</div>
+                  <div class="diff-opt-desc">${d.desc}</div>
+                </div>
+                <span class="diff-opt-xp">${d.xp}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
       </div>
-      <div class="quiz-explanation" id="quiz-exp">${q.exp}</div>
-      <div class="quiz-nav">
-        <button class="btn btn-primary btn-sm" id="next-btn" onclick="nextQuestion()" style="display:none">Next →</button>
+      <!-- CTA -->
+      <div class="quiz-cta-card">
+        <div class="quiz-cta-info">
+          <h3>Ready to test yourself?</h3>
+          <p>⏱ 20 seconds per question · 🔥 Streak bonuses · ⚡ Earn XP</p>
+        </div>
+        <button class="btn btn-primary" onclick="startQuiz()" style="white-space:nowrap">Start Quiz ⚡</button>
       </div>
+      ${state.quizBestScore > 0 ? `<div style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted)">🏆 Your best score: <strong style="color:var(--accent)">${state.quizBestScore}%</strong></div>` : ''}
     </div>
   `;
 }
 
-window.answerQuiz = function(idx) {
-  const q = currentQuiz.questions[currentQuiz.idx];
-  const opts = document.querySelectorAll('.quiz-option');
-  opts.forEach(o => o.disabled = true);
-  opts[q.ans].classList.add('correct');
-  const isCorrect = idx === q.ans;
-  if (!isCorrect) opts[idx].classList.add('wrong');
-  else currentQuiz.score++;
-  currentQuiz.answers.push({ q: q.q, chosen: idx, correct: q.ans, right: isCorrect, exp: q.exp, options: q.options });
-  document.getElementById('quiz-exp').classList.add('show');
-  document.getElementById('next-btn').style.display = 'block';
+window.setQuizTopic = function(id, btn) {
+  quizConfig.topic = id;
+  document.querySelectorAll('.quiz-topic-opt').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+};
+
+window.setQuizDiff = function(id, btn) {
+  quizConfig.diff = id;
+  document.querySelectorAll('.diff-opt').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+};
+
+function startQuiz() {
+  let pool = QUIZ_BANK;
+  if (quizConfig.topic !== 'all') pool = pool.filter(q => q.topic === quizConfig.topic);
+  if (quizConfig.diff !== 'all') pool = pool.filter(q => q.diff === quizConfig.diff);
+  if (!pool.length) { showToast('No questions match that filter!', 'info'); return; }
+
+  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(10, pool.length));
+  activeQuiz = { questions: shuffled, idx: 0, score: 0, streak: 0, maxStreak: 0, answers: [], timerInterval: null, qStartTime: 0 };
+
+  document.getElementById('quiz-setup').classList.add('hidden');
+  document.getElementById('quiz-results').classList.add('hidden');
+  document.getElementById('quiz-game').classList.remove('hidden');
+  renderActiveQuestion();
+  playSound('click');
+}
+
+function renderActiveQuestion() {
+  const { questions, idx, score, streak } = activeQuiz;
+  if (idx >= questions.length) { endQuiz(); return; }
+  const q = questions[idx];
+  const pct = (idx / questions.length) * 100;
+  const letters = ['A','B','C','D'];
+  const TIMER_SECS = 20;
+
+  document.getElementById('quiz-game').innerHTML = `
+    <div class="quiz-active-wrap">
+      <div class="quiz-hud">
+        <div class="hud-item">
+          <span class="hud-label">Score</span>
+          <span class="hud-value" style="color:var(--accent)">${score}</span>
+        </div>
+        <div class="hud-item hud-progress">
+          <span class="hud-label">${idx+1} / ${questions.length}</span>
+          <div class="hud-prog-bar-wrap">
+            <div class="hud-prog-bar" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">⏱ Time</span>
+          <span class="hud-value hud-timer" id="q-timer">${TIMER_SECS}</span>
+        </div>
+        ${streak >= 2 ? `<div class="quiz-streak">🔥 ${streak} streak</div>` : ''}
+      </div>
+
+      <div class="quiz-q-card">
+        <div class="quiz-q-meta">
+          <span class="quiz-q-topic-tag">${q.topic}</span>
+          <span class="quiz-q-diff-tag qdiff-${q.diff}">${q.diff}</span>
+          <span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto">+${q.xp} XP</span>
+        </div>
+        <div class="quiz-q-text">${q.q}</div>
+        ${q.code ? `<div class="quiz-code-snippet">${q.code}</div>` : ''}
+        <div class="quiz-options-grid">
+          ${q.options.map((o, i) => `
+            <button class="quiz-opt-btn" id="qopt-${i}" onclick="answerActiveQuiz(${i})">
+              <span class="quiz-opt-letter">${letters[i]}</span>${o}
+            </button>
+          `).join('')}
+        </div>
+        <div class="quiz-feedback-box" id="q-feedback"></div>
+        <div class="quiz-q-nav">
+          <button class="quiz-q-skip" onclick="skipQuestion()">Skip question →</button>
+          <button class="btn btn-primary btn-sm" id="q-next-btn" onclick="nextActiveQuestion()" style="display:none">
+            ${idx + 1 < questions.length ? 'Next Question →' : 'See Results 🏆'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Start per-question timer
+  if (activeQuiz.timerInterval) clearInterval(activeQuiz.timerInterval);
+  let t = TIMER_SECS;
+  activeQuiz.qStartTime = Date.now();
+  activeQuiz.timerInterval = setInterval(() => {
+    t--;
+    const el = document.getElementById('q-timer');
+    if (el) {
+      el.textContent = t;
+      if (t <= 5) el.classList.add('danger');
+    }
+    if (t <= 0) {
+      clearInterval(activeQuiz.timerInterval);
+      timeOutQuestion();
+    }
+  }, 1000);
+}
+
+window.answerActiveQuiz = function(chosenIdx) {
+  clearInterval(activeQuiz.timerInterval);
+  const q = activeQuiz.questions[activeQuiz.idx];
+  const timeTaken = ((Date.now() - activeQuiz.qStartTime) / 1000).toFixed(1);
+  const isCorrect = chosenIdx === q.ans;
+
+  // Disable all options
+  document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+  document.querySelector(`#qopt-${q.ans}`)?.classList.add('opt-correct');
+  if (!isCorrect) document.querySelector(`#qopt-${chosenIdx}`)?.classList.add('opt-wrong');
+
+  if (isCorrect) {
+    activeQuiz.score += q.xp;
+    activeQuiz.streak++;
+    activeQuiz.maxStreak = Math.max(activeQuiz.maxStreak, activeQuiz.streak);
+    // Streak bonus
+    if (activeQuiz.streak >= 3) {
+      activeQuiz.score += 5;
+      showXPPopup(`🔥 Streak x${activeQuiz.streak}! +5 bonus`);
+    }
+  } else {
+    activeQuiz.streak = 0;
+  }
+
+  activeQuiz.answers.push({ q: q.q, chosen: chosenIdx, correct: q.ans, right: isCorrect, exp: q.exp, options: q.options, time: timeTaken, xp: q.xp });
+
+  const fb = document.getElementById('q-feedback');
+  if (fb) {
+    fb.className = `quiz-feedback-box show ${isCorrect ? 'fb-correct' : 'fb-wrong'}`;
+    fb.innerHTML = `
+      <div class="fb-head ${isCorrect ? 'fb-correct-head' : 'fb-wrong-head'}">
+        ${isCorrect ? '✅ Correct!' : '❌ Not quite!'} ${isCorrect && activeQuiz.streak >= 3 ? '🔥 Streak bonus!' : ''}
+      </div>
+      <div class="fb-explanation">${q.exp}</div>
+    `;
+  }
+
+  const nb = document.getElementById('q-next-btn');
+  if (nb) nb.style.display = 'block';
+
   playSound(isCorrect ? 'success' : 'wrong');
 };
 
-window.nextQuestion = function() {
-  currentQuiz.idx++;
-  renderQuizQuestion();
+function skipQuestion() {
+  clearInterval(activeQuiz.timerInterval);
+  const q = activeQuiz.questions[activeQuiz.idx];
+  activeQuiz.streak = 0;
+  activeQuiz.answers.push({ q: q.q, chosen: -1, correct: q.ans, right: false, exp: q.exp, options: q.options, time: '—', xp: q.xp, skipped: true });
+  activeQuiz.idx++;
+  renderActiveQuestion();
+}
+
+function timeOutQuestion() {
+  const q = activeQuiz.questions[activeQuiz.idx];
+  document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+  document.querySelector(`#qopt-${q.ans}`)?.classList.add('opt-correct');
+  activeQuiz.streak = 0;
+  activeQuiz.answers.push({ q: q.q, chosen: -1, correct: q.ans, right: false, exp: q.exp, options: q.options, time: '⏱', xp: q.xp, timed_out: true });
+
+  const fb = document.getElementById('q-feedback');
+  if (fb) {
+    fb.className = 'quiz-feedback-box show fb-wrong';
+    fb.innerHTML = `<div class="fb-head fb-wrong-head">⏱ Time's up!</div><div class="fb-explanation">${q.exp}</div>`;
+  }
+  const nb = document.getElementById('q-next-btn');
+  if (nb) nb.style.display = 'block';
+  playSound('wrong');
+}
+
+window.nextActiveQuestion = function() {
+  activeQuiz.idx++;
+  renderActiveQuestion();
   playSound('click');
 };
 
-function showQuizResults() {
-  const { questions, score, answers } = currentQuiz;
-  const pct = Math.round((score / questions.length) * 100);
+function endQuiz() {
+  clearInterval(activeQuiz.timerInterval);
+  const { questions, score, answers, maxStreak } = activeQuiz;
+  const correct = answers.filter(a => a.right).length;
+  const pct = Math.round((correct / questions.length) * 100);
+  const maxXP = questions.reduce((s, q) => s + q.xp, 0);
+
   if (pct > (state.quizBestScore || 0)) {
     state.quizBestScore = pct;
-    state.quizTotalPlayed++;
-    saveState();
   }
-  addXP(score * 5, 'Quiz');
+  state.quizTotalPlayed = (state.quizTotalPlayed || 0) + 1;
+  saveState();
+  addXP(score, 'Quiz');
 
-  let emoji = pct === 100 ? '🏆' : pct >= 70 ? '🎉' : pct >= 40 ? '👍' : '📖';
-  let title = pct === 100 ? 'Perfect Score!' : pct >= 70 ? 'Great Job!' : pct >= 40 ? 'Good Try!' : 'Keep Learning!';
+  const grade = pct === 100 ? 'Perfect! 🏆' : pct >= 80 ? 'Excellent! 🎉' : pct >= 60 ? 'Good Job! 👍' : pct >= 40 ? 'Keep Going! 💪' : 'Study More! 📖';
+  const ringColor = pct >= 80 ? '#4ecdc4' : pct >= 60 ? '#f7c948' : '#ff6b6b';
+  const circumference = 2 * Math.PI * 44;
+  const dashOffset = circumference - (pct / 100) * circumference;
 
   document.getElementById('quiz-game').classList.add('hidden');
   document.getElementById('quiz-results').classList.remove('hidden');
   document.getElementById('quiz-results').innerHTML = `
-    <div class="quiz-results-card">
-      <div class="results-emoji">${emoji}</div>
-      <div class="results-title">${title}</div>
-      <div class="results-score">${score}/${questions.length}</div>
-      <div class="results-sub">${pct}% accuracy${pct === 100 ? ' — You aced it!' : ''}</div>
-      <div class="results-actions">
-        <button class="btn btn-primary" onclick="startQuiz()">Try Again ↺</button>
-        <button class="btn btn-ghost" onclick="renderQuizSetup()">Change Topic</button>
+    <div class="quiz-results-new">
+      <div class="results-hero">
+        <div class="results-ring">
+          <svg viewBox="0 0 100 100">
+            <circle class="ring-track" cx="50" cy="50" r="44"/>
+            <circle class="ring-fill" cx="50" cy="50" r="44"
+              stroke="${ringColor}"
+              stroke-dasharray="${circumference}"
+              stroke-dashoffset="${dashOffset}"
+            />
+          </svg>
+          <div class="ring-label">
+            <span class="ring-pct" style="color:${ringColor}">${pct}%</span>
+            <span class="ring-sub">accuracy</span>
+          </div>
+        </div>
+        <div class="results-grade">${grade}</div>
+        <div class="results-msg">${correct} correct out of ${questions.length} questions</div>
+        <div class="results-stats-row">
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--accent)">⚡ ${score}</div><div class="r-stat-lbl">XP Earned</div></div>
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--accent3)">${correct}</div><div class="r-stat-lbl">Correct</div></div>
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--accent2)">${questions.length - correct}</div><div class="r-stat-lbl">Wrong/Skip</div></div>
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--accent4)">${maxStreak}🔥</div><div class="r-stat-lbl">Best Streak</div></div>
+        </div>
+        ${maxStreak >= 3 ? `<div class="streak-achieved">🔥 ${maxStreak}-answer streak achieved!</div>` : ''}
+        <div class="results-actions" style="margin-top:1.5rem">
+          <button class="btn btn-primary" onclick="startQuiz()">Play Again ↺</button>
+          <button class="btn btn-ghost" onclick="renderQuizSetup()">Change Settings</button>
+        </div>
       </div>
-      <div class="results-breakdown" style="margin-top:2rem">
-        <h4 style="margin-bottom:1rem;font-size:0.95rem">Answer Breakdown:</h4>
-        ${answers.map(a => `
-          <div class="result-item ${a.right ? 'right' : 'wrong-r'}">
-            <span class="result-icon">${a.right ? '✅' : '❌'}</span>
-            <div>
-              <div style="font-weight:600;font-size:0.88rem">${a.q}</div>
-              <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">
-                ${a.right ? 'Correct' : `Your answer: ${a.options[a.chosen]} · Correct: ${a.options[a.correct]}`}
+      <div class="results-breakdown-new">
+        <div class="breakdown-header">📋 Answer Breakdown</div>
+        ${answers.map((a, i) => `
+          <div class="breakdown-item">
+            <span class="bd-icon">${a.right ? '✅' : a.skipped ? '⏭️' : a.timed_out ? '⏱' : '❌'}</span>
+            <div style="flex:1">
+              <div class="bd-q">${i+1}. ${a.q}</div>
+              <div class="bd-detail">
+                ${a.right
+                  ? `<span class="correct-ans">✓ ${a.options[a.correct]}</span>`
+                  : a.skipped
+                    ? `Skipped · <span class="correct-ans">Answer: ${a.options[a.correct]}</span>`
+                    : `<span class="your-ans">You: ${a.options[a.chosen] || '—'}</span> · <span class="correct-ans">Correct: ${a.options[a.correct]}</span>`
+                }
               </div>
+              <div class="bd-detail" style="margin-top:0.2rem;font-style:italic">${a.exp}</div>
             </div>
+            <span class="bd-time">${a.time}s</span>
           </div>
         `).join('')}
       </div>
     </div>
   `;
+
   updateDashboard();
   if (pct === 100) addConfetti();
+  else if (pct >= 70) playSound('complete');
 }
 
 /* ============================================================
    22. INIT
+   Called by firebase.js once auth state is known (user logged in)
+   Also bootstraps particle canvas and typing animation immediately.
 ============================================================ */
 function init() {
   loadState();
+  window.state = state; // keep window.state in sync after loadState
   renderTopics();
-  renderChallenges();
+  renderPracticeStageMap();
   renderGamesGrid();
   renderQuizSetup();
   updateDashboard();
   checkAchievements();
 
-  // Fade in sections with staggered delays
-  document.querySelectorAll('.topic-card, .challenge-card, .game-card').forEach((el, i) => {
+  document.querySelectorAll('.topic-card, .game-card').forEach((el, i) => {
     el.style.opacity = '0';
     el.style.transform = 'translateY(16px)';
     setTimeout(() => {
@@ -1557,5 +2321,12 @@ function init() {
     }, 100 + i * 50);
   });
 }
+window.init = init;
 
-document.addEventListener('DOMContentLoaded', init);
+// Particles + typing run immediately (they render on the auth screen too)
+document.addEventListener('DOMContentLoaded', () => {
+  // These are already defined as IIFEs above and run immediately,
+  // but we ensure the canvas is visible on the auth screen
+  const canvas = document.getElementById('particles-canvas');
+  if (canvas) canvas.style.zIndex = '0';
+});
