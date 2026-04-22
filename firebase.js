@@ -30,7 +30,7 @@ import {
    🔧 YOUR FIREBASE CONFIG — UPDATED WITH YOUR PROJECT DATA
 ============================================================ */
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-import { FIREBASE_API_KEY } from './config.js';
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBbSJCqHvmN4Qhu9ZEbed05Fj2b2SlSbsI",
