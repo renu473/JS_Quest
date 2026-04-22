@@ -33,14 +33,14 @@ import {
 import { FIREBASE_API_KEY } from './config.js';
 
 const firebaseConfig = {
-  apiKey: FIREBASE_API_KEY,
-  authDomain: "://firebaseapp.com",
+  apiKey: "AIzaSyBbSJCqHvmN4Qhu9ZEbed05Fj2b2SlSbsI",
+  authDomain: "js-quest-eebd4.firebaseapp.com",
   projectId: "js-quest-eebd4",
   storageBucket: "js-quest-eebd4.firebasestorage.app",
   messagingSenderId: "6377856929",
   appId: "1:6377856929:web:b2f8494474b111a1ed75e0",
   measurementId: "G-74BCLLSC2R"
-};
+}
 
 
 
