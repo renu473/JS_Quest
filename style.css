@@ -2044,7 +2044,6 @@ main { position: relative; z-index: 1; padding-top: 64px; }
   .level-col, .lb-th:nth-child(4) { display: none; }
   .auth-wrapper { padding: 1rem; }
 }
-<<<<<<< HEAD
 
 /* =============================================
    LANDING PAGE
@@ -2233,5 +2232,3 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 .dropdown-item:hover { background: var(--glass-hover); color: var(--text); }
 .dropdown-logout { color: var(--accent2) !important; }
 .dropdown-logout:hover { background: rgba(255,107,107,0.08) !important; }
-=======
->>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9

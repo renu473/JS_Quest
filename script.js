@@ -35,19 +35,13 @@ function loadState() {
 }
 
 function saveState() {
-<<<<<<< HEAD
   saveStateLocal();
-=======
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-  // Sync to Firestore (non-blocking, defined in firebase.js)
->>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   if (typeof window.saveUserToFirestore === 'function') {
     window.saveUserToFirestore().catch(() => {});
   }
 }
 window.saveState = saveState;
 
-<<<<<<< HEAD
 // saveStateLocal — localStorage only, no Firestore upload
 // Called by firebase.js after cloud data is loaded (avoids loop)
 function saveStateLocal() {
@@ -55,8 +49,6 @@ function saveStateLocal() {
 }
 window.saveStateLocal = saveStateLocal;
 
-=======
->>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
 function addXP(amount, label = '') {
   state.xp += amount;
   state.level = Math.floor(state.xp / 100) + 1;
@@ -180,11 +172,7 @@ themeBtn.addEventListener('click', () => {
    5. TYPING ANIMATION (Hero)
 ============================================================ */
 (function initTyping() {
-<<<<<<< HEAD
   const el = document.getElementById('typing-code-app') || document.getElementById('typing-code');
-=======
-  const el = document.getElementById('typing-code');
->>>>>>> 50885d639fc7beb3e55c1a60f11acd0f2a1260b9
   const lines = [
     '// Welcome to JS Quest! 🚀',
     '',
