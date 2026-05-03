@@ -2424,174 +2424,791 @@ window.startECRound = function(roundIdx) {
 };
 
 /* ============================================================
-   19. GAME: DEBUG THE CODE
+   19. GAME: DEBUG THE CODE — "Bug Hunter Mode" UPGRADED
+   - 3 Rounds: Easy (syntax), Medium (logic), Hard (runtime)
+   - 20+ bugs total across all rounds
+   - Timer per bug — faster = more XP bonus
+   - Hint penalty: -5 XP per hint used
+   - Streak system: 3 consecutive fixes = bonus XP
+   - XP varies by difficulty
 ============================================================ */
-const DEBUG_CHALLENGES = [
+
+const DEBUG_ROUNDS = [
   {
-    title: 'Fix the function',
-    buggy: `function greet(name) {\n  return "Hello, " + Name;\n}`,
-    fixed: `function greet(name) {\n  return "Hello, " + name;\n}`,
-    hint: 'Variable names are case-sensitive. Check the parameter name.',
-    test: code => { try { const fn = new Function(code + '; return greet("World")==="Hello, World";'); return fn(); } catch(e) { return false; } }
+    id: 1, label: 'Round 1', icon: '🟢', name: 'Syntax Bugs',
+    desc: 'Typos, wrong case, missing brackets',
+    color: '#4ecdc4', timeLimit: 45, xpBase: 15,
+    challenges: [
+      {
+        title: 'Case-sensitive variable',
+        category: 'Typo',
+        buggy: `function greet(name) {\n  return "Hello, " + Name;\n}`,
+        hint: 'JavaScript is case-sensitive. Check the parameter name vs what you\'re returning.',
+        explain: '`Name` should be `name` — parameters are case-sensitive in JS.',
+        test: c => { try { return new Function(c + '; return greet("World")==="Hello, World";')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Missing parenthesis',
+        category: 'Syntax',
+        buggy: `function add(a, b {\n  return a + b;\n}\nconsole.log(add(2, 3));`,
+        hint: 'Look at the function signature — something is missing before the {.',
+        explain: 'The closing `)` is missing after parameters: `(a, b)` not `(a, b {`.',
+        test: c => { try { return new Function(c + '; return add(2,3)===5;')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Wrong string quotes',
+        category: 'Syntax',
+        buggy: `const msg = 'Hello World";\nconsole.log(msg);`,
+        hint: 'String delimiters must match — opening and closing quotes should be the same.',
+        explain: 'String opened with `\'` but closed with `"` — they must match.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='Hello World'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Missing closing bracket',
+        category: 'Syntax',
+        buggy: `const nums = [1, 2, 3, 4, 5;\nconsole.log(nums.length);`,
+        hint: 'Arrays need both an opening [ and a closing ].',
+        explain: 'The array is missing its closing `]` bracket.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='5'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Wrong method casing',
+        category: 'Typo',
+        buggy: `const nums = [1, 2, 3, 4, 5];\nconst doubled = nums.Map(n => n * 2);\nconsole.log(doubled);`,
+        hint: 'Array methods are all lowercase in JavaScript.',
+        explain: '`.Map()` should be `.map()` — JavaScript method names are case-sensitive.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(JSON.stringify(v)); new Function(c)(); console.log=o; return logs[0]==='[2,4,6,8,10]'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Missing return keyword',
+        category: 'Syntax',
+        buggy: `function square(n) {\n  n * n;\n}\nconsole.log(square(4));`,
+        hint: 'The function computes a value but never sends it back to the caller.',
+        explain: '`n * n;` is computed but not returned. Add `return` before it.',
+        test: c => { try { return new Function(c + '; return square(4)===16;')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Assignment vs comparison',
+        category: 'Typo',
+        buggy: `let x = 10;\nif (x = 5) {\n  console.log("x is 5");\n} else {\n  console.log("x is not 5");\n}`,
+        hint: 'In the condition, are you comparing or assigning?',
+        explain: '`x = 5` assigns (always truthy). Use `x === 5` to compare.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='x is not 5'; } catch(e) { return false; } }
+      },
+    ]
   },
   {
-    title: 'Fix the loop',
-    buggy: `let sum = 0;\nfor (let i = 1; i <= 5; i++) {\n  sum = sum + i\n}\nconsole.log(sum);`,
-    fixed: `let sum = 0;\nfor (let i = 1; i <= 5; i++) {\n  sum = sum + i;\n}\nconsole.log(sum);`,
-    hint: 'Look for a missing semicolon inside the loop body.',
-    test: code => { try { let logs = []; const orig = console.log; console.log = v => logs.push(String(v)); new Function(code)(); console.log = orig; return logs.includes('15'); } catch(e) { return false; } }
+    id: 2, label: 'Round 2', icon: '🟡', name: 'Logic Bugs',
+    desc: 'Wrong conditions, off-by-one, bad operators',
+    color: '#f7c948', timeLimit: 50, xpBase: 25,
+    challenges: [
+      {
+        title: 'Off-by-one loop',
+        category: 'Logic',
+        buggy: `let sum = 0;\nfor (let i = 1; i < 5; i++) {\n  sum += i;\n}\nconsole.log(sum); // should be 15`,
+        hint: 'The loop should count from 1 to 5 *inclusive*. Check the condition.',
+        explain: '`i < 5` stops at 4. Use `i <= 5` to include 5: 1+2+3+4+5 = 15.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='15'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Wrong comparison operator',
+        category: 'Logic',
+        buggy: `function isAdult(age) {\n  return age > 18;\n}\nconsole.log(isAdult(18)); // should be true`,
+        hint: 'Should 18 year olds be considered adults? Check the operator.',
+        explain: '`> 18` excludes 18. Use `>= 18` to include exactly 18.',
+        test: c => { try { return new Function(c + '; return isAdult(18)===true;')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Reversed condition',
+        category: 'Logic',
+        buggy: `function max(a, b) {\n  if (a < b) {\n    return a;\n  }\n  return b;\n}\nconsole.log(max(3, 7)); // should be 7`,
+        hint: 'If a is less than b, which one is the maximum?',
+        explain: 'When `a < b`, b is the max — but we\'re returning `a`. Swap: return `b` inside the if, `a` outside.',
+        test: c => { try { return new Function(c + '; return max(3,7)===7 && max(10,2)===10;')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Wrong array index',
+        category: 'Logic',
+        buggy: `const fruits = ["apple", "banana", "cherry"];\nconsole.log(fruits[3]); // should print "cherry"`,
+        hint: 'Arrays are zero-indexed. What index does the last element have?',
+        explain: 'Arrays start at index 0. "cherry" is at index 2, not 3.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='cherry'; } catch(e) { return false; } }
+      },
+      {
+        title: 'String vs number comparison',
+        category: 'Logic',
+        buggy: `const input = "5";\nif (input === 5) {\n  console.log("equal");\n} else {\n  console.log("not equal");\n}\n// Fix: should print "equal"`,
+        hint: '=== checks both value AND type. The types don\'t match here.',
+        explain: '"5" (string) !== 5 (number) with ===. Convert: `Number(input) === 5` or use `==`.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='equal'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Infinite loop risk',
+        category: 'Logic',
+        buggy: `let count = 0;\nwhile (count < 5) {\n  console.log(count);\n  count--;\n}`,
+        hint: 'The loop should eventually end. Is count moving toward or away from the condition?',
+        explain: '`count--` decrements — count goes 0,-1,-2... never reaches 5. Use `count++`.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs.join(',') === '0,1,2,3,4'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Object property typo',
+        category: 'Logic',
+        buggy: `const user = { name: "Alice", age: 25 };\nconsole.log(user.nane); // should print "Alice"`,
+        hint: 'Check the property name you\'re accessing vs what\'s defined in the object.',
+        explain: '`user.nane` should be `user.name` — a typo in the property access.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='Alice'; } catch(e) { return false; } }
+      },
+    ]
   },
   {
-    title: 'Fix the array method',
-    buggy: `const nums = [1, 2, 3, 4, 5];\nconst doubled = nums.Map(n => n * 2);\nconsole.log(doubled);`,
-    fixed: `const nums = [1, 2, 3, 4, 5];\nconst doubled = nums.map(n => n * 2);\nconsole.log(doubled);`,
-    hint: 'Array methods are lowercase. Check the method name.',
-    test: code => { try { let logs = []; const orig = console.log; console.log = v => logs.push(JSON.stringify(v)); new Function(code)(); console.log = orig; return logs[0] === '[2,4,6,8,10]'; } catch(e) { return false; } }
-  },
+    id: 3, label: 'Round 3', icon: '🔴', name: 'Runtime Bugs',
+    desc: 'Scope errors, type errors, reference errors',
+    color: '#ff6b6b', timeLimit: 60, xpBase: 40,
+    challenges: [
+      {
+        title: 'Scope issue — var in block',
+        category: 'Scope',
+        buggy: `function checkAge() {\n  if (true) {\n    var message = "hello";\n  }\n  // Fix: use let so message is block-scoped\n  // Make message undefined outside the block\n  console.log(typeof message);\n}\ncheckAge(); // should print "undefined"`,
+        hint: '`var` leaks out of blocks. Which keyword keeps variables inside their block?',
+        explain: 'Replace `var` with `let` — let is block-scoped so `message` won\'t exist outside the if.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='undefined'; } catch(e) { return false; } }
+      },
+      {
+        title: 'TypeError — calling non-function',
+        category: 'TypeError',
+        buggy: `const obj = {\n  name: "Bob",\n  greet: "Hello!"\n};\nconsole.log(obj.greet()); // should print "Hello!"`,
+        hint: '`greet` is not a function — it\'s a string. How do you make it callable?',
+        explain: '`greet` must be a function: `greet: () => "Hello!"` or `greet() { return "Hello!"; }`.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='Hello!'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Mutating const array wrong way',
+        category: 'TypeError',
+        buggy: `const arr = [1, 2, 3];\narr = [...arr, 4];\nconsole.log(arr.length); // should be 4`,
+        hint: 'You can\'t reassign a const. But you can *mutate* it. Which method adds to an array in-place?',
+        explain: 'Use `arr.push(4)` instead. `const` prevents reassignment but allows mutation methods.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='4'; } catch(e) { return false; } }
+      },
+      {
+        title: 'NaN arithmetic',
+        category: 'TypeError',
+        buggy: `const price = "100";\nconst tax = 10;\nconst total = price + tax;\nconsole.log(total); // should be 110`,
+        hint: 'One of these is a string. What happens when you add a string and a number?',
+        explain: '"100" + 10 = "10010" (concatenation). Use `Number(price) + tax` or `+price + tax`.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='110'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Closure variable capture',
+        category: 'Closure',
+        buggy: `const funcs = [];\nfor (var i = 0; i < 3; i++) {\n  funcs.push(() => console.log(i));\n}\nfuncs[0](); // should print 0`,
+        hint: '`var` is function-scoped — all closures share the same `i`. Which keyword creates a new binding per iteration?',
+        explain: 'Replace `var` with `let` — let creates a new `i` for each loop iteration, so closures capture different values.',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return logs[0]==='0'; } catch(e) { return false; } }
+      },
+      {
+        title: 'Undefined method on null',
+        category: 'TypeError',
+        buggy: `function getLength(str) {\n  return str.length;\n}\nconsole.log(getLength(null)); // should return 0 safely`,
+        hint: 'Calling `.length` on null throws. Add a guard before accessing the property.',
+        explain: 'Add a null check: `if (!str) return 0;` or use optional chaining: `str?.length ?? 0`.',
+        test: c => { try { return new Function(c + '; return getLength(null)===0;')(); } catch(e) { return false; } }
+      },
+      {
+        title: 'Async result used synchronously',
+        category: 'Async',
+        buggy: `function double(n) {\n  return new Promise(resolve => resolve(n * 2));\n}\nconst result = double(5);\nconsole.log(result); // should print 10`,
+        hint: 'A Promise doesn\'t give the value directly. You need to unwrap it.',
+        explain: 'Use `.then()`: `double(5).then(result => console.log(result));`',
+        test: c => { try { let logs=[]; const o=console.log; console.log=v=>logs.push(String(v)); new Function(c)(); console.log=o; return new Promise(res => setTimeout(()=> res(logs[0]==='10'), 50)); } catch(e) { return false; } }
+      },
+    ]
+  }
 ];
 
-let debugIdx = 0;
+// Debug game state
+let debugState = {
+  round: 0,         // current round index
+  challengeIdx: 0,  // current challenge within round
+  score: 0,
+  streak: 0,
+  hintsUsed: 0,
+  timerInterval: null,
+  timeLeft: 0,
+  gameStarted: false,
+};
 
 function renderDebugGame(container) {
-  debugIdx = 0;
-  renderDebugChallenge(container);
-}
-
-function renderDebugChallenge(container) {
-  const ch = DEBUG_CHALLENGES[debugIdx];
+  // Show round selector
   container.innerHTML = `
-    <div class="game-wrapper">
-      <div class="game-title">🐛 Debug the Code</div>
-      <div class="game-subtitle">Challenge ${debugIdx+1}/${DEBUG_CHALLENGES.length}: ${ch.title}</div>
-      <div class="game-score-bar">
-        <div class="score-item"><span class="score-label">Challenge</span><span class="score-value">${debugIdx+1}/${DEBUG_CHALLENGES.length}</span></div>
+    <div class="game-wrapper" style="max-width:660px;margin:0 auto">
+      <div class="game-title">🐛 Bug Hunter Mode</div>
+      <div class="game-subtitle">Find and fix bugs across 3 rounds of increasing difficulty!</div>
+
+      <div style="display:flex;flex-direction:column;gap:0.75rem;margin:1.5rem 0">
+        ${DEBUG_ROUNDS.map((r, i) => {
+          const bestKey = `debugBest_r${r.id}`;
+          const best = state[bestKey];
+          return `
+            <div class="debug-round-card" style="--rc:${r.color}" onclick="startDebugRound(${i})">
+              <div style="display:flex;align-items:center;gap:1rem">
+                <span style="font-size:1.8rem">${r.icon}</span>
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:1rem">${r.label}: ${r.name}</div>
+                  <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.15rem">${r.desc} · ${r.challenges.length} bugs · ${r.timeLimit}s per bug</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:0.75rem;color:var(--text-muted)">Base XP</div>
+                  <div style="font-weight:700;color:${r.color}">${r.xpBase} XP</div>
+                  ${best !== undefined ? `<div style="font-size:0.7rem;color:var(--accent3);margin-top:0.15rem">✓ Best: ${best}pts</div>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
-      <div class="debug-game">
-        <div class="debug-code-area">
-          <div class="debug-instructions">🐛 There's a bug in this code — find it and fix it!</div>
-          <textarea class="debug-editor" id="debug-editor" spellcheck="false">${ch.buggy}</textarea>
-        </div>
-        <div class="output-panel" id="debug-out">// Click "Run & Check" to test your fix...</div>
-        <div class="debug-controls">
-          <button class="btn btn-primary btn-sm" onclick="checkDebug()">▶ Run & Check</button>
-          <button class="btn btn-ghost btn-sm" onclick="showDebugHint()">💡 Hint</button>
-          <button class="btn btn-ghost btn-sm" onclick="resetDebug()">↺ Reset</button>
-        </div>
-        <div id="debug-hint" style="display:none;padding:1rem;background:rgba(247,201,72,0.06);border:1px solid rgba(247,201,72,0.2);border-radius:10px;font-size:0.88rem;color:var(--text-muted)">
-          💡 ${ch.hint}
-        </div>
+
+      <div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.15);border-radius:12px;padding:1rem;font-size:0.82rem;color:var(--text-muted)">
+        ⚡ <strong>Faster fix = more XP</strong> &nbsp;·&nbsp;
+        💡 <strong>Hint costs -5 XP</strong> &nbsp;·&nbsp;
+        🔥 <strong>3-streak = +15 bonus XP</strong>
       </div>
     </div>
   `;
 }
 
-window.checkDebug = function() {
+window.startDebugRound = function(roundIdx) {
+  debugState = { round: roundIdx, challengeIdx: 0, score: 0, streak: 0, hintsUsed: 0, timerInterval: null, timeLeft: 0, gameStarted: true };
+  renderDebugChallenge(document.getElementById('game-content'));
+};
+
+function renderDebugChallenge(container) {
+  const round = DEBUG_ROUNDS[debugState.round];
+  const ch = round.challenges[debugState.challengeIdx];
+  const total = round.challenges.length;
+  const idx = debugState.challengeIdx;
+
+  if (debugState.timerInterval) clearInterval(debugState.timerInterval);
+  debugState.timeLeft = round.timeLimit;
+
+  container.innerHTML = `
+    <div class="game-wrapper" style="max-width:700px;margin:0 auto">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <div class="game-title" style="margin:0;font-size:1.2rem">
+            🐛 ${round.label}: ${round.name}
+            <span style="font-size:0.75rem;background:${round.color}20;color:${round.color};padding:0.2rem 0.6rem;border-radius:8px;margin-left:0.5rem;vertical-align:middle">${ch.category}</span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">Bug ${idx+1} of ${total}: ${ch.title}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="renderDebugGame(document.getElementById('game-content'))">← Rounds</button>
+      </div>
+
+      <!-- HUD -->
+      <div class="game-score-bar" style="margin-bottom:0.75rem">
+        <div class="score-item"><span class="score-label">Score</span><span class="score-value" id="dbg-score" style="color:var(--accent)">${debugState.score}</span></div>
+        <div class="score-item"><span class="score-label">Streak</span><span class="score-value" id="dbg-streak" style="color:var(--accent2)">${debugState.streak}🔥</span></div>
+        <div class="score-item"><span class="score-label">⏱ Time</span><span class="score-value" id="dbg-timer" style="color:var(--accent3)">${round.timeLimit}</span></div>
+        <div class="score-item"><span class="score-label">Progress</span><span class="score-value">${idx+1}/${total}</span></div>
+      </div>
+
+      <!-- Timer bar -->
+      <div style="height:4px;background:var(--bg3);border-radius:2px;margin-bottom:1rem;overflow:hidden">
+        <div id="dbg-timebar" style="height:100%;width:100%;background:linear-gradient(90deg,${round.color},${round.color}aa);border-radius:2px;transition:width 0.9s linear"></div>
+      </div>
+
+      <!-- Bug progress dots -->
+      <div style="display:flex;gap:0.4rem;margin-bottom:1rem">
+        ${round.challenges.map((_, i) => `
+          <div style="height:6px;flex:1;border-radius:3px;background:${i < idx ? round.color : i === idx ? round.color+'60' : 'var(--bg3)'}"></div>
+        `).join('')}
+      </div>
+
+      <!-- Editor area -->
+      <div class="debug-game">
+        <div class="debug-code-area">
+          <div class="debug-instructions">🐛 Find and fix the bug in this code!</div>
+          <textarea class="debug-editor" id="debug-editor" spellcheck="false">${ch.buggy}</textarea>
+        </div>
+        <div class="output-panel" id="debug-out">// Click "Run & Check" to test your fix...</div>
+        <div class="debug-controls">
+          <button class="btn btn-primary btn-sm" onclick="checkDebugNew()">▶ Run & Check</button>
+          <button class="btn btn-ghost btn-sm" id="dbg-hint-btn" onclick="useDebugHint()">💡 Hint (−5 XP)</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetDebugNew()">↺ Reset</button>
+        </div>
+        <div id="debug-hint-box" style="display:none;margin-top:0.75rem;padding:0.85rem;background:rgba(247,201,72,0.07);border:1px solid rgba(247,201,72,0.25);border-radius:10px;font-size:0.86rem;color:var(--text-muted)">
+          💡 ${ch.hint}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Start timer
+  debugState.timerInterval = setInterval(() => {
+    debugState.timeLeft--;
+    const te = document.getElementById('dbg-timer');
+    const bar = document.getElementById('dbg-timebar');
+    if (te) { te.textContent = debugState.timeLeft; if (debugState.timeLeft <= 10) te.style.color = '#ff6b6b'; }
+    if (bar) bar.style.width = `${(debugState.timeLeft / round.timeLimit) * 100}%`;
+    if (debugState.timeLeft <= 0) {
+      clearInterval(debugState.timerInterval);
+      timeOutDebug();
+    }
+  }, 1000);
+}
+
+function timeOutDebug() {
+  const round = DEBUG_ROUNDS[debugState.round];
+  const ch = round.challenges[debugState.challengeIdx];
+  debugState.streak = 0;
+  const out = document.getElementById('debug-out');
+  if (out) {
+    out.textContent = `⏱ Time's up! The fix was:\n${ch.buggy.replace(/(Name|Map|<|=\s*5\b|< 5\b|i--|\[3\]|nane|var message|greet: "Hello!"|arr = \[|"100"|var i|return str\.length|const result = double)/g, m => '→ ' + m)}`;
+    out.className = 'output-panel error';
+  }
+  document.getElementById('dbg-streak').textContent = '0🔥';
+  setTimeout(() => advanceDebugChallenge(false), 2000);
+}
+
+window.checkDebugNew = function() {
+  if (debugState.timerInterval === null) return;
+  clearInterval(debugState.timerInterval);
+  const round = DEBUG_ROUNDS[debugState.round];
+  const ch = round.challenges[debugState.challengeIdx];
   const code = document.getElementById('debug-editor')?.value || '';
   const out = document.getElementById('debug-out');
-  const ch = DEBUG_CHALLENGES[debugIdx];
   let logs = [];
   const orig = console.log;
   console.log = (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+  let passed = false;
   try {
     new Function(code)();
-    const passed = ch.test(code);
-    out.className = `output-panel ${passed ? '' : 'error'}`;
-    out.textContent = (logs.length ? logs.join('\n') + '\n' : '') + (passed ? '✅ Bug fixed! Well done!' : '❌ Not quite right. Try again!');
-    if (passed) {
-      playSound('success');
-      addXP(20, 'Debug Challenge');
-      setTimeout(() => {
-        debugIdx++;
-        if (debugIdx < DEBUG_CHALLENGES.length) {
-          showToast('🎉 Fixed! Moving to next bug...', 'success');
-          renderDebugChallenge(document.getElementById('game-content'));
-        } else {
-          showToast('🏆 All bugs squashed!', 'success');
-          addConfetti();
-          document.getElementById('game-content').innerHTML += '<div style="text-align:center;margin-top:1.5rem;font-size:1.2rem;font-weight:700;color:var(--accent)">🎉 Debug Master! All challenges complete!</div>';
-        }
-      }, 1200);
-    } else {
-      playSound('wrong');
+    const testResult = ch.test(code);
+    if (testResult && typeof testResult.then === 'function') {
+      testResult.then(r => {
+        console.log = orig;
+        handleDebugResult(r, logs, code, round, ch);
+      });
+      return;
     }
+    passed = !!testResult;
   } catch(e) {
     out.textContent = '❌ Error: ' + e.message;
     out.className = 'output-panel error';
     playSound('wrong');
+    console.log = orig;
+    debugState.timerInterval = null;
+    // Restart timer
+    setTimeout(() => {
+      if (document.getElementById('debug-editor')) {
+        debugState.timeLeft = round.timeLimit;
+        renderDebugChallenge(document.getElementById('game-content'));
+      }
+    }, 1500);
+    return;
   }
   console.log = orig;
+  handleDebugResult(passed, logs, code, round, ch);
 };
 
-window.showDebugHint = function() {
-  const h = document.getElementById('debug-hint');
-  if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
+function handleDebugResult(passed, logs, code, round, ch) {
+  const out = document.getElementById('debug-out');
+  if (!out) return;
+  if (passed) {
+    // XP calculation: base + time bonus + streak bonus - hint penalty
+    const timeBonus = Math.floor((debugState.timeLeft / round.timeLimit) * 20);
+    let earnedXP = round.xpBase + timeBonus - (debugState.hintsUsed * 5);
+    earnedXP = Math.max(earnedXP, 5); // minimum 5 XP
+    debugState.score += earnedXP;
+    debugState.streak++;
+    debugState.hintsUsed = 0; // reset hints for next challenge
+
+    const streakBonus = debugState.streak >= 3 ? 15 : 0;
+    if (streakBonus) { debugState.score += streakBonus; showXPPopup(`🔥 ${debugState.streak}-Streak! +${streakBonus} bonus XP`); }
+
+    document.getElementById('dbg-score').textContent = debugState.score;
+    document.getElementById('dbg-streak').textContent = debugState.streak + '🔥';
+
+    out.innerHTML = (logs.length ? logs.join('\n') + '\n\n' : '') +
+      `✅ Bug squashed! +${earnedXP} XP (${timeBonus > 0 ? `+${timeBonus} speed bonus` : 'no speed bonus'})\n💡 ${ch.explain}`;
+    out.className = 'output-panel';
+    playSound('success');
+    setTimeout(() => advanceDebugChallenge(true), 1800);
+  } else {
+    out.textContent = (logs.length ? logs.join('\n') + '\n\n' : '') + '❌ Not fixed yet — check your logic and try again!';
+    out.className = 'output-panel error';
+    playSound('wrong');
+    debugState.timerInterval = null;
+    // Restart timer
+    const roundRef = DEBUG_ROUNDS[debugState.round];
+    debugState.timeLeft = Math.max(debugState.timeLeft - 5, 5); // penalty: -5s
+    let t = debugState.timeLeft;
+    debugState.timerInterval = setInterval(() => {
+      t--;
+      debugState.timeLeft = t;
+      const te = document.getElementById('dbg-timer');
+      const bar = document.getElementById('dbg-timebar');
+      if (te) { te.textContent = t; if (t <= 10) te.style.color = '#ff6b6b'; }
+      if (bar) bar.style.width = `${(t / roundRef.timeLimit) * 100}%`;
+      if (t <= 0) { clearInterval(debugState.timerInterval); timeOutDebug(); }
+    }, 1000);
+  }
+}
+
+function advanceDebugChallenge(wasCorrect) {
+  const round = DEBUG_ROUNDS[debugState.round];
+  debugState.challengeIdx++;
+  if (debugState.challengeIdx >= round.challenges.length) {
+    // Round complete!
+    endDebugRound();
+  } else {
+    showToast(wasCorrect ? '🎉 Bug fixed! Next one...' : '⏭ Moving on...', wasCorrect ? 'success' : 'info');
+    renderDebugChallenge(document.getElementById('game-content'));
+  }
+}
+
+function endDebugRound() {
+  if (debugState.timerInterval) clearInterval(debugState.timerInterval);
+  const round = DEBUG_ROUNDS[debugState.round];
+  const total = round.challenges.length;
+  const bestKey = `debugBest_r${round.id}`;
+  const prevBest = state[bestKey];
+  const isNewBest = prevBest === undefined || debugState.score > prevBest;
+  if (isNewBest) { state[bestKey] = debugState.score; saveState(); }
+
+  addXP(debugState.score, `Debug ${round.label}`);
+  if (debugState.score > round.xpBase * total * 0.7) addConfetti();
+
+  const isLastRound = debugState.round === DEBUG_ROUNDS.length - 1;
+  const nextRoundIdx = debugState.round + 1;
+
+  document.getElementById('game-content').innerHTML = `
+    <div class="game-wrapper" style="max-width:560px;margin:0 auto;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem">${round.icon}</div>
+      <div class="game-title">${round.label} Complete!</div>
+      <div style="font-size:3rem;font-weight:900;color:${round.color};margin:0.5rem 0">${debugState.score}</div>
+      <div style="color:var(--text-muted);margin-bottom:1rem">points earned ${isNewBest ? '· 🏆 New best!' : ''}</div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1.5rem 0">
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.3rem;font-weight:700;color:var(--accent)">${total}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Bugs Fixed</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.3rem;font-weight:700;color:var(--accent2)">${debugState.streak}🔥</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Best Streak</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.3rem;font-weight:700;color:var(--accent3)">${debugState.score} XP</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Total Earned</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="startDebugRound(${debugState.round})">Replay Round 🔁</button>
+        ${!isLastRound ? `<button class="btn btn-primary" onclick="startDebugRound(${nextRoundIdx})">Next Round ${DEBUG_ROUNDS[nextRoundIdx].icon} →</button>` : `<div style="color:var(--accent3);font-weight:700;padding:0.6rem">🏆 All 3 Rounds Complete — Bug Hunter Master!</div>`}
+        <button class="btn btn-ghost" onclick="renderDebugGame(document.getElementById('game-content'))">Round Select</button>
+      </div>
+    </div>
+  `;
+}
+
+window.useDebugHint = function() {
+  const box = document.getElementById('debug-hint-box');
+  const btn = document.getElementById('dbg-hint-btn');
+  if (!box) return;
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    debugState.hintsUsed++;
+    if (btn) btn.textContent = '💡 Hint used (−5 XP)';
+    showToast('💡 Hint shown — −5 XP penalty', 'info');
+  } else {
+    box.style.display = 'none';
+  }
 };
 
-window.resetDebug = function() {
-  const ch = DEBUG_CHALLENGES[debugIdx];
+window.resetDebugNew = function() {
+  const round = DEBUG_ROUNDS[debugState.round];
+  const ch = round.challenges[debugState.challengeIdx];
   const ed = document.getElementById('debug-editor');
   if (ed) ed.value = ch.buggy;
 };
 
 /* ============================================================
-   20. GAME: SPEED QUIZ
+   20. GAME: SPEED QUIZ — "Knowledge Blitz" UPGRADED
+   - 50+ questions from QUIZ_BANK (shared with main Quiz section)
+   - 10 random questions per game
+   - Lifelines: 50/50 (removes 2 wrong options), Skip (1 per game)
+   - Difficulty progression: easy first, then medium, then hard
+   - Subject filter: All / Variables / Functions / Arrays / DOM etc.
+   - Streak multiplier, timer bar, answer explanation
 ============================================================ */
-const SPEED_QUESTIONS = [
-  { q: 'What keyword declares a block-scoped variable?', options: ['var','let','define','int'], ans: 1 },
-  { q: 'Which method adds to the end of an array?', options: ['push()','pop()','shift()','add()'], ans: 0 },
-  { q: 'What does typeof [] return?', options: ['"array"','"object"','"list"','"null"'], ans: 1 },
-  { q: 'Which is the arrow function syntax?', options: ['function=>','fn()=>','=>fn','(x) => x'], ans: 3 },
-  { q: 'What does === check?', options: ['Value only','Type only','Value and type','Assignment'], ans: 2 },
-];
+
+// SQ = Speed Quiz game state (separate from main quiz)
+let sqState = {
+  questions: [], idx: 0, score: 0, streak: 0,
+  skipsLeft: 1, fiftyFiftyLeft: 1,
+  timerInterval: null, timePerQ: 12,
+  selectedTopic: 'all',
+};
 
 function renderSpeedQuiz(container) {
-  let qIdx = 0, score = 0, timers = [];
+  // Topic filter buttons
+  const topicOpts = [
+    { id: 'all', label: '🎯 All Topics' },
+    { id: 'variables', label: '📦 Variables' },
+    { id: 'functions', label: '⚙️ Functions' },
+    { id: 'arrays', label: '📋 Arrays' },
+    { id: 'objects', label: '🗂️ Objects' },
+    { id: 'dom', label: '🌐 DOM' },
+    { id: 'loops', label: '🔄 Loops' },
+    { id: 'datatypes', label: '🔢 Data Types' },
+    { id: 'events', label: '🎯 Events' },
+  ].filter(t => t.id === 'all' || QUIZ_BANK.some(q => q.topic === t.id));
 
-  function renderQ() {
-    if (qIdx >= SPEED_QUESTIONS.length) {
-      container.innerHTML = `<div class="game-wrapper" style="text-align:center">
-        <div class="game-title">Speed Quiz Done!</div>
-        <div class="results-score">${score}/${SPEED_QUESTIONS.length}</div>
-        <div class="results-sub">${score === SPEED_QUESTIONS.length ? '🏆 Perfect Score!' : score > 2 ? '👍 Good job!' : '📖 Keep studying!'}</div>
-        <button class="btn btn-primary" onclick="openGame('quizgame')">Play Again</button>
-      </div>`;
-      addXP(score * 5, 'Speed Quiz');
-      if (score === SPEED_QUESTIONS.length) addConfetti();
-      return;
+  container.innerHTML = `
+    <div class="game-wrapper" style="max-width:620px;margin:0 auto">
+      <div class="game-title">⚡ Knowledge Blitz</div>
+      <div class="game-subtitle">10 questions, 12 seconds each — how fast is your JS knowledge?</div>
+
+      <div style="margin:1.5rem 0">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.6rem">📚 Filter by Topic</div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="sq-topic-btns">
+          ${topicOpts.map(t => `
+            <button class="sq-topic-btn ${t.id === sqState.selectedTopic ? 'sq-topic-active' : ''}"
+                    onclick="setSQTopic('${t.id}',this)">${t.label}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="background:var(--bg3);border-radius:12px;padding:1rem;margin-bottom:1.5rem;font-size:0.83rem;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:0.75rem 1.5rem">
+        <span>⚡ 12s per question</span>
+        <span>💡 1× 50/50 lifeline</span>
+        <span>⏭️ 1× skip per game</span>
+        <span>🔥 Streak multiplier</span>
+        <span>📈 Easy → Hard order</span>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;font-size:1rem;padding:0.75rem"
+              onclick="startSQGame()">⚡ Start Blitz!</button>
+
+      ${sqState.score > 0 ? `<div style="text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--text-muted)">Last game: <strong style="color:var(--accent)">${sqState.score} XP</strong></div>` : ''}
+    </div>
+  `;
+
+  window.setSQTopic = function(id, btn) {
+    sqState.selectedTopic = id;
+    document.querySelectorAll('.sq-topic-btn').forEach(b => b.classList.remove('sq-topic-active'));
+    btn.classList.add('sq-topic-active');
+  };
+}
+
+window.startSQGame = function() {
+  // Build question pool from QUIZ_BANK filtered by topic
+  let pool = QUIZ_BANK;
+  if (sqState.selectedTopic !== 'all') pool = pool.filter(q => q.topic === sqState.selectedTopic);
+  if (pool.length === 0) { showToast('No questions for that topic!', 'info'); return; }
+
+  // Sort by difficulty: easy first, then medium, then hard
+  const ordered = [
+    ...pool.filter(q => q.diff === 'easy').sort(() => Math.random() - 0.5),
+    ...pool.filter(q => q.diff === 'medium').sort(() => Math.random() - 0.5),
+    ...pool.filter(q => q.diff === 'hard').sort(() => Math.random() - 0.5),
+  ].slice(0, 10);
+
+  sqState = { ...sqState, questions: ordered, idx: 0, score: 0, streak: 0, skipsLeft: 1, fiftyFiftyLeft: 1, timerInterval: null };
+  renderSQQuestion(document.getElementById('game-content'));
+};
+
+function renderSQQuestion(container) {
+  if (sqState.timerInterval) clearInterval(sqState.timerInterval);
+  const { questions, idx, score, streak, skipsLeft, fiftyFiftyLeft } = sqState;
+
+  if (idx >= questions.length) { endSQGame(container); return; }
+
+  const q = questions[idx];
+  const pct = (idx / questions.length) * 100;
+  const letters = ['A','B','C','D'];
+  const diffColor = { easy: '#4ecdc4', medium: '#f7c948', hard: '#ff6b6b' }[q.diff] || '#a855f7';
+
+  container.innerHTML = `
+    <div class="game-wrapper" style="max-width:620px;margin:0 auto">
+      <!-- HUD -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.6rem;flex-wrap:wrap">
+        <div style="display:flex;gap:1rem">
+          <div class="score-item"><span class="score-label">XP</span><span class="score-value" style="color:var(--accent)">${score}</span></div>
+          <div class="score-item"><span class="score-label">Streak</span><span class="score-value" style="color:var(--accent2)">${streak}🔥</span></div>
+          <div class="score-item"><span class="score-label">Q</span><span class="score-value">${idx+1}/${questions.length}</span></div>
+        </div>
+        <div style="display:flex;gap:0.4rem">
+          <button class="sq-lifeline-btn ${fiftyFiftyLeft === 0 ? 'sq-lifeline-used' : ''}"
+                  onclick="useFiftyFifty()" ${fiftyFiftyLeft === 0 ? 'disabled' : ''} title="50/50 — removes 2 wrong answers">
+            ${fiftyFiftyLeft > 0 ? '50/50' : '✓used'}
+          </button>
+          <button class="sq-lifeline-btn ${skipsLeft === 0 ? 'sq-lifeline-used' : ''}"
+                  onclick="useSQSkip()" ${skipsLeft === 0 ? 'disabled' : ''} title="Skip this question">
+            ${skipsLeft > 0 ? '⏭ Skip' : '✓used'}
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="height:4px;background:var(--bg3);border-radius:2px;margin-bottom:0.75rem;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent3),var(--accent));border-radius:2px;transition:width 0.3s"></div>
+      </div>
+
+      <!-- Timer bar -->
+      <div style="height:5px;background:var(--bg3);border-radius:3px;margin-bottom:1rem;overflow:hidden">
+        <div id="sq-timebar" style="height:100%;width:100%;background:${diffColor};border-radius:3px;transition:width 0.9s linear"></div>
+      </div>
+
+      <!-- Question card -->
+      <div style="background:var(--bg3);border:1px solid var(--glass-border);border-radius:14px;padding:1.25rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <span style="font-size:0.72rem;background:${diffColor}20;color:${diffColor};padding:0.2rem 0.6rem;border-radius:8px;font-weight:700;text-transform:uppercase">${q.diff}</span>
+          <span style="font-size:0.72rem;color:var(--text-muted)">${q.topic} · +${q.xp} XP</span>
+          <span id="sq-timer-num" style="font-size:1rem;font-weight:700;color:${diffColor}">12</span>
+        </div>
+        <div style="font-size:1rem;font-weight:600;line-height:1.5;margin-bottom:${q.code ? '0.75rem' : '0'}">${q.q}</div>
+        ${q.code ? `<pre style="background:var(--bg2);border-radius:8px;padding:0.75rem;font-family:'Fira Code',monospace;font-size:0.8rem;white-space:pre-wrap;color:var(--accent3);margin:0">${q.code}</pre>` : ''}
+      </div>
+
+      <!-- Options -->
+      <div class="sq-options-grid" id="sq-opts">
+        ${q.options.map((o, i) => `
+          <button class="sq-opt" id="sq-opt-${i}" onclick="answerSQNew(${i})">
+            <span class="sq-opt-letter">${letters[i]}</span> ${o}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Feedback -->
+      <div id="sq-feedback" style="display:none;margin-top:0.75rem;padding:0.85rem;border-radius:10px;font-size:0.85rem"></div>
+    </div>
+  `;
+
+  // Start timer
+  let t = sqState.timePerQ;
+  sqState.timerInterval = setInterval(() => {
+    t--;
+    const tn = document.getElementById('sq-timer-num');
+    const tb = document.getElementById('sq-timebar');
+    if (tn) { tn.textContent = t; if (t <= 3) tn.style.color = '#ff6b6b'; }
+    if (tb) tb.style.width = `${(t / sqState.timePerQ) * 100}%`;
+    if (t <= 0) {
+      clearInterval(sqState.timerInterval);
+      timeOutSQ();
     }
-    const q = SPEED_QUESTIONS[qIdx];
-    container.innerHTML = `<div class="game-wrapper">
-      <div class="game-title">⚡ Speed Quiz</div>
-      <div class="game-score-bar">
-        <div class="score-item"><span class="score-label">Score</span><span class="score-value">${score}</span></div>
-        <div class="score-item"><span class="score-label">Question</span><span class="score-value">${qIdx+1}/${SPEED_QUESTIONS.length}</span></div>
-        <div class="score-item"><span class="score-label">Time</span><span class="score-value" id="sq-timer">10</span></div>
-      </div>
-      <div class="quiz-question" style="font-size:1.1rem;margin-bottom:1.5rem">${q.q}</div>
-      <div class="quiz-options">
-        ${q.options.map((o, i) => `<button class="quiz-option" onclick="answerSQ(${i})">${o}</button>`).join('')}
-      </div>
-    </div>`;
+  }, 1000);
+}
 
-    let t = 10;
-    const iv = setInterval(() => {
-      t--;
-      const te = document.getElementById('sq-timer');
-      if (te) te.textContent = t;
-      if (t <= 0) { clearInterval(iv); qIdx++; renderQ(); }
-    }, 1000);
-    timers.push(iv);
+function timeOutSQ() {
+  const q = sqState.questions[sqState.idx];
+  document.querySelectorAll('.sq-opt').forEach(b => b.disabled = true);
+  const correctBtn = document.getElementById(`sq-opt-${q.ans}`);
+  if (correctBtn) correctBtn.classList.add('sq-opt-correct');
+  sqState.streak = 0;
+  showSQFeedback(false, q, true);
+  setTimeout(() => { sqState.idx++; renderSQQuestion(document.getElementById('game-content')); }, 2000);
+}
 
-    window.answerSQ = function(idx) {
-      timers.forEach(clearInterval); timers = [];
-      const opts = document.querySelectorAll('.quiz-option');
-      opts.forEach((o, i) => { o.disabled = true; if (i === q.ans) o.classList.add('correct'); });
-      if (idx === q.ans) { score++; playSound('success'); opts[idx].classList.add('correct'); }
-      else { opts[idx].classList.add('wrong'); playSound('wrong'); }
-      setTimeout(() => { qIdx++; renderQ(); }, 1000);
-    };
+window.answerSQNew = function(chosen) {
+  if (sqState.timerInterval) clearInterval(sqState.timerInterval);
+  const q = sqState.questions[sqState.idx];
+  const isCorrect = chosen === q.ans;
+
+  document.querySelectorAll('.sq-opt').forEach(b => b.disabled = true);
+  document.getElementById(`sq-opt-${q.ans}`)?.classList.add('sq-opt-correct');
+  if (!isCorrect) document.getElementById(`sq-opt-${chosen}`)?.classList.add('sq-opt-wrong');
+
+  if (isCorrect) {
+    sqState.streak++;
+    const multiplier = sqState.streak >= 4 ? 2 : sqState.streak >= 2 ? 1.5 : 1;
+    const earned = Math.round(q.xp * multiplier);
+    sqState.score += earned;
+    if (multiplier > 1) showXPPopup(`🔥 x${multiplier} streak! +${earned} XP`);
+    playSound('success');
+  } else {
+    sqState.streak = 0;
+    playSound('wrong');
   }
-  renderQ();
+
+  showSQFeedback(isCorrect, q, false);
+  setTimeout(() => { sqState.idx++; renderSQQuestion(document.getElementById('game-content')); }, 2000);
+};
+
+window.useFiftyFifty = function() {
+  if (sqState.fiftyFiftyLeft === 0) return;
+  sqState.fiftyFiftyLeft = 0;
+  const q = sqState.questions[sqState.idx];
+  // Get 2 wrong answer indices and hide them
+  const wrongIdxs = [0,1,2,3].filter(i => i !== q.ans).sort(() => Math.random()-0.5).slice(0, 2);
+  wrongIdxs.forEach(i => {
+    const btn = document.getElementById(`sq-opt-${i}`);
+    if (btn) { btn.style.opacity = '0.2'; btn.style.pointerEvents = 'none'; }
+  });
+  showToast('💡 50/50 used — 2 wrong answers removed!', 'info');
+};
+
+window.useSQSkip = function() {
+  if (sqState.skipsLeft === 0) return;
+  sqState.skipsLeft = 0;
+  if (sqState.timerInterval) clearInterval(sqState.timerInterval);
+  sqState.streak = 0;
+  showToast('⏭ Question skipped!', 'info');
+  setTimeout(() => { sqState.idx++; renderSQQuestion(document.getElementById('game-content')); }, 500);
+};
+
+function showSQFeedback(correct, q, timedOut) {
+  const fb = document.getElementById('sq-feedback');
+  if (!fb) return;
+  fb.style.display = 'block';
+  fb.style.background = correct ? 'rgba(78,205,196,0.08)' : 'rgba(255,107,107,0.08)';
+  fb.style.border = `1px solid ${correct ? 'rgba(78,205,196,0.3)' : 'rgba(255,107,107,0.3)'}`;
+  fb.innerHTML = `
+    <strong style="color:${correct ? 'var(--accent3)' : '#ff6b6b'}">${timedOut ? '⏱ Time\'s up!' : correct ? '✅ Correct!' : '❌ Wrong!'}</strong>
+    <span style="color:var(--text-muted);margin-left:0.5rem">${q.exp}</span>
+  `;
+}
+
+function endSQGame(container) {
+  if (sqState.timerInterval) clearInterval(sqState.timerInterval);
+  const total = sqState.questions.length;
+  const correct = sqState.score > 0 ? Math.round(sqState.score / (QUIZ_BANK.find(q=>q.diff==='easy')?.xp||5)) : 0;
+
+  addXP(sqState.score, 'Knowledge Blitz');
+  if (sqState.score >= total * 8) addConfetti();
+
+  const grade = sqState.score >= total * 15 ? '🏆 Genius!' : sqState.score >= total * 10 ? '🎉 Excellent!' : sqState.score >= total * 5 ? '👍 Good Job!' : '📖 Keep Studying!';
+
+  container.innerHTML = `
+    <div class="game-wrapper" style="max-width:540px;margin:0 auto;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem">⚡</div>
+      <div class="game-title">Blitz Complete!</div>
+      <div style="font-size:3.5rem;font-weight:900;color:var(--accent);margin:0.5rem 0">${sqState.score}</div>
+      <div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:1.5rem">XP earned · ${grade}</div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1.5rem">
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--accent)">${sqState.score}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Total XP</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--accent3)">${total}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Questions</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:0.85rem">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--accent2)">${sqState.streak}🔥</div>
+          <div style="font-size:0.72rem;color:var(--text-muted)">Final Streak</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="window.startSQGame()">Play Again ⚡</button>
+        <button class="btn btn-ghost" onclick="renderSpeedQuiz(document.getElementById('game-content'))">Change Topic</button>
+      </div>
+    </div>
+  `;
 }
 
 /* ============================================================
