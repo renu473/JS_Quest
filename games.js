@@ -7,6 +7,7 @@ const GAMES_DEF = [
   { id: 'clickspeed', icon: '⚡', name: 'Event Loop',      desc: '3 rounds: click, keydown, mouseover — learn events!',  tag: 'Events',     color: '#ff6b6b' },
   { id: 'debug',      icon: '🐛', name: 'Bug Hunter',      desc: '3 rounds, 21 bugs — syntax, logic & runtime errors!', tag: 'Debugging',  color: '#a855f7' },
   { id: 'quizgame',   icon: '🏆', name: 'Knowledge Blitz', desc: '10 questions, lifelines, streak multiplier — fast!',   tag: 'All Topics', color: '#50fa7b' },
+  { id: 'typing',     icon: '⌨️', name: 'Typing Master',   desc: 'JS code type karo — WPM & accuracy improve karo!',       tag: 'Typing',     color: '#4ecdc4' },
 ];
 
 function renderGamesGrid() {
@@ -37,6 +38,7 @@ function openGame(id, _fromPop) {
     case 'clickspeed': renderClickSpeed(content); break;
     case 'debug':      renderDebugGame(content); break;
     case 'quizgame':   renderSpeedQuiz(content); break;
+    case 'typing':     renderTypingMaster(content); break;
   }
 }
 
