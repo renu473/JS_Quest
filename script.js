@@ -64,28 +64,107 @@ function updateNavXP() {
 }
 
 /* ============================================================
-   2. NAVIGATION
+   2. NAVIGATION + BROWSER BACK BUTTON FIX
 ============================================================ */
 let currentSection = 'home';
 
-function goTo(section) {
+// Stack tracking what the user has navigated into
+// so browser/phone back button can step back layer by layer
+let _navStack = [];
+let _handlingPop = false;
+
+function _pushNav(entry) {
+  _navStack.push(entry);
+  window.history.pushState({ _nav: _navStack.length }, '', window.location.pathname);
+}
+window._pushNav = _pushNav;
+
+// Browser/phone back button handler
+window.addEventListener('popstate', function() {
+  if (_handlingPop) return;
+  _handlingPop = true;
+  setTimeout(function() { _handlingPop = false; }, 50);
+
+  if (_navStack.length === 0) {
+    _handlingPop = false;
+    return;
+  }
+
+  _navStack.pop();
+  const prev = _navStack[_navStack.length - 1];
+
+  if (!prev) {
+    // No more history — just close whatever is open innermost
+    _closeInnermostLayer();
+    _handlingPop = false;
+    return;
+  }
+
+  _restoreNavEntry(prev);
+});
+
+function _closeInnermostLayer() {
+  const gameArena    = document.getElementById('game-arena');
+  const conceptPanel = document.getElementById('concept-panel');
+  const challPanel   = document.getElementById('challenge-panel');
+  const stageDiv     = document.getElementById('practice-stage-challenges');
+
+  if (gameArena && gameArena.classList.contains('open')) {
+    closeGameArena();
+  } else if (conceptPanel && conceptPanel.classList.contains('open')) {
+    closeConceptPanel();
+  } else if (challPanel && challPanel.classList.contains('open')) {
+    closeChallengePanel();
+  } else if (stageDiv && !stageDiv.classList.contains('hidden')) {
+    renderPracticeStageMap();
+  }
+}
+
+function _restoreNavEntry(entry) {
+  if (!entry) return;
+  if (entry.type === 'section') {
+    _goToInternal(entry.section);
+  } else if (entry.type === 'game') {
+    _goToInternal('games');
+    openGame(entry.gameId, true);
+  } else if (entry.type === 'gameScreen') {
+    _goToInternal('games');
+    openGame(entry.gameId, true);
+    if (typeof entry.restore === 'function') entry.restore();
+  } else if (entry.type === 'stage') {
+    _goToInternal('practice');
+    openStage(entry.stageId);
+  } else if (entry.type === 'challenge') {
+    _goToInternal('practice');
+    openStage(entry.stageId);
+    openChallenge(entry.challengeId, entry.stageId);
+  } else if (entry.type === 'concept') {
+    _goToInternal('learn');
+    openConcept(entry.topicId);
+  }
+}
+
+// Internal goTo without pushing history (used when restoring)
+function _goToInternal(section) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
   const secEl = document.getElementById(section);
   if (secEl) secEl.classList.add('active');
-  document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+  document.querySelector('[data-section="' + section + '"]')?.classList.add('active');
   currentSection = section;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  closeConceptPanel(true);
+  closeChallengePanel(true);
+  closeGameArena(true);
+  if (section === 'home') updateDashboard();
+  if (section === 'quiz') renderQuizSetup();
+  if (section === 'leaderboard' && typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
+}
 
-  closeConceptPanel();
-  closeChallengePanel();
-  closeGameArena();
-
-  if (section === 'home')        updateDashboard();
-  if (section === 'quiz')        renderQuizSetup();
-  if (section === 'leaderboard' && typeof window.renderLeaderboard === 'function') {
-    window.renderLeaderboard();
-  }
+function goTo(section) {
+  _navStack = [{ type: 'section', section }];
+  window.history.replaceState({ _nav: 1 }, '', window.location.pathname);
+  _goToInternal(section);
 }
 window.goTo = goTo;
 
@@ -649,6 +728,7 @@ function openConcept(id) {
   const topic = TOPICS.find(t => t.id === id);
   if (!topic) return;
   playSound('click');
+  _pushNav({ type: 'concept', topicId: id });
 
   document.getElementById('topics-grid').style.display = 'none';
   const panel = document.getElementById('concept-panel');
@@ -694,7 +774,7 @@ function openConcept(id) {
   `;
 }
 
-function closeConceptPanel() {
+function closeConceptPanel(_silent) {
   document.getElementById('topics-grid').style.display = '';
   document.getElementById('concept-panel').classList.remove('open');
 }
@@ -1182,6 +1262,7 @@ function renderPracticeStageMap() {
 function openStage(stageId) {
   currentStageId = stageId;
   playSound('click');
+  _pushNav({ type: 'stage', stageId });
   const stage = PRACTICE_STAGES.find(s => s.id === stageId);
   if (!stage) return;
 
@@ -1228,6 +1309,7 @@ function openChallenge(id, stageId) {
   const stage = PRACTICE_STAGES.find(s => s.id === stageId);
   if (!ch || !stage) return;
   playSound('click');
+  _pushNav({ type: 'challenge', challengeId: id, stageId });
 
   document.getElementById('practice-stage-challenges').classList.add('hidden');
   const panel = document.getElementById('challenge-panel');
@@ -1303,7 +1385,7 @@ function openChallenge(id, stageId) {
   `;
 }
 
-function closeChallengePanel() {
+function closeChallengePanel(_silent) {
   const stageDiv = document.getElementById('practice-stage-challenges');
   if (currentStageId) {
     stageDiv.classList.remove('hidden');
@@ -1390,11 +1472,11 @@ function renderChallenges() { renderPracticeStageMap(); }
    15. GAMES SECTION
 ============================================================ */
 const GAMES_DEF = [
-  { id: 'memory', icon: '🃏', name: 'Memory Match', desc: 'Match pairs of JS keywords. Tests your memory!', tag: 'Arrays & DOM', color: '#f7c948' },
-  { id: 'dragdrop', icon: '🖱️', name: 'Drag & Drop', desc: 'Drag JS concepts to their definitions.', tag: 'DOM Events', color: '#4ecdc4' },
-  { id: 'clickspeed', icon: '⚡', name: 'Event Challenge', desc: '3 rounds — click, keydown, mouseover events seekho!', tag: 'JS Events', color: '#f7c948' },
-  { id: 'debug', icon: '🐛', name: 'Debug the Code', desc: 'Find and fix the bugs in broken JS code.', tag: 'Debugging', color: '#a855f7' },
-  { id: 'quizgame', icon: '🏆', name: 'Speed Quiz', desc: 'Answer JS questions as fast as possible!', tag: 'All Topics', color: '#50fa7b' },
+  { id: 'memory',     icon: '🃏', name: 'Memory Match',   desc: 'Match JS keyword pairs — 3 difficulties, 4 themes!',   tag: 'Memory',     color: '#f7c948' },
+  { id: 'dragdrop',   icon: '🖱️', name: 'DOM Builder',    desc: '5 levels — drag JS concepts to correct definitions!',  tag: 'DOM Events', color: '#4ecdc4' },
+  { id: 'clickspeed', icon: '⚡', name: 'Event Loop',      desc: '3 rounds: click, keydown, mouseover — learn events!',  tag: 'Events',     color: '#ff6b6b' },
+  { id: 'debug',      icon: '🐛', name: 'Bug Hunter',      desc: '3 rounds, 21 bugs — syntax, logic & runtime errors!', tag: 'Debugging',  color: '#a855f7' },
+  { id: 'quizgame',   icon: '🏆', name: 'Knowledge Blitz', desc: '10 questions, lifelines, streak multiplier — fast!',   tag: 'All Topics', color: '#50fa7b' },
 ];
 
 function renderGamesGrid() {
@@ -1410,23 +1492,25 @@ function renderGamesGrid() {
   `).join('');
 }
 
-function openGame(id) {
+function openGame(id, _fromPop) {
   playSound('click');
   document.getElementById('games-grid').style.display = 'none';
   const arena = document.getElementById('game-arena');
   arena.classList.add('open');
   const content = document.getElementById('game-content');
 
+  if (!_fromPop) _pushNav({ type: 'game', gameId: id });
+
   switch(id) {
-    case 'memory': renderMemoryGame(content); break;
-    case 'dragdrop': renderDragDrop(content); break;
+    case 'memory':     renderMemoryGame(content); break;
+    case 'dragdrop':   renderDragDrop(content); break;
     case 'clickspeed': renderClickSpeed(content); break;
-    case 'debug': renderDebugGame(content); break;
-    case 'quizgame': renderSpeedQuiz(content); break;
+    case 'debug':      renderDebugGame(content); break;
+    case 'quizgame':   renderSpeedQuiz(content); break;
   }
 }
 
-function closeGameArena() {
+function closeGameArena(_silent) {
   document.getElementById('games-grid').style.display = '';
   document.getElementById('game-arena').classList.remove('open');
   document.getElementById('game-content').innerHTML = '';
@@ -1474,8 +1558,8 @@ const MEMORY_THEMES = {
 
 const MEMORY_DIFFICULTIES = {
   easy:   { label: 'Easy',   icon: '🌱', pairs: 8,  timer: 0,  xpBase: 20, xpBonus: 5,  gridCols: 4, timerLabel: 'No timer' },
-  medium: { label: 'Medium', icon: '⚙️', pairs: 12, timer: 60, xpBase: 40, xpBonus: 10, gridCols: 4, timerLabel: '60s' },
-  hard:   { label: 'Hard',   icon: '🔥', pairs: 16, timer: 45, xpBase: 60, xpBonus: 15, gridCols: 4, timerLabel: '45s' },
+  medium: { label: 'Medium', icon: '⚙️', pairs: 12, timer: 60, xpBase: 40, xpBonus: 10, gridCols: 6, timerLabel: '60s' },
+  hard:   { label: 'Hard',   icon: '🔥', pairs: 16, timer: 45, xpBase: 60, xpBonus: 15, gridCols: 8, timerLabel: '45s' },
 };
 
 // Best scores stored per difficulty in state
@@ -1564,18 +1648,21 @@ function renderMemoryGame(container) {
   window.startMemoryGame = function() {
     const diff   = MEMORY_DIFFICULTIES[selectedDiff];
     const theme  = MEMORY_THEMES[selectedTheme];
-    const key    = `words${diff.pairs * 2}`; // words8, words12, words16
+    // key is words8 / words12 / words16 based on number of pairs
+    const keyMap = { 8: 'words8', 12: 'words12', 16: 'words16' };
+    const key    = keyMap[diff.pairs] || 'words8';
     const words  = theme[key] || theme.words8;
     const cards  = [...words, ...words].sort(() => Math.random() - 0.5);
 
     let flipped = [], matched = 0, moves = 0, combo = 0, totalXP = 0;
     let canFlip = true, timerVal = diff.timer, timerInterval = null, gameOver = false;
 
-    const cols   = diff.pairs <= 8 ? 4 : diff.pairs <= 12 ? 4 : 4;
+    // cols: Easy=4 (4×4 grid), Medium=6 (6×4 grid), Hard=8 (8×4 grid)
+    const cols = diff.gridCols || 4;
     const totalPairs = diff.pairs;
 
     container.innerHTML = `
-      <div class="game-wrapper" style="max-width:700px;margin:0 auto">
+      <div class="game-wrapper" style="max-width:${diff.pairs<=8?'560px':diff.pairs<=12?'760px':'900px'};margin:0 auto">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
           <div>
             <div class="game-title" style="margin:0;font-size:1.3rem">🃏 Code Memory <span style="font-size:0.8rem;background:var(--bg3);padding:0.2rem 0.6rem;border-radius:8px;margin-left:0.5rem;vertical-align:middle">${diff.icon} ${diff.label}</span></div>
@@ -1877,7 +1964,7 @@ window.startDDLevel = function(lvlId) {
   let lives       = 3;
   let correct     = 0;
   let draggedTerm = null;
-  let timeLeft    = 60;
+  let timeLeft    = lvl.id === 1 ? 0 : 60;  // Level 1 (Easy/Arrays): no timer for beginners
   let timerInt    = null;
   let gameActive  = true;
   const total     = pairs.length;
@@ -1898,11 +1985,11 @@ window.startDDLevel = function(lvlId) {
         <div class="game-score-bar" style="margin-bottom:0.75rem">
           <div class="score-item"><span class="score-label">Correct</span><span class="score-value" id="dd-correct" style="color:var(--accent3)">0/${total}</span></div>
           <div class="score-item"><span class="score-label">Lives</span><span class="score-value" id="dd-lives">❤️❤️❤️</span></div>
-          <div class="score-item"><span class="score-label">⏱ Time</span><span class="score-value" id="dd-timer" style="color:var(--accent)">${timeLeft}</span></div>
+          ${timeLeft > 0 ? `<div class="score-item"><span class="score-label">⏱ Time</span><span class="score-value" id="dd-timer" style="color:var(--accent)">${timeLeft}</span></div>` : `<div class="score-item"><span class="score-label">⏱ Timer</span><span class="score-value" style="color:var(--accent3)">None</span></div>`}
         </div>
-        <div style="height:5px;background:var(--bg3);border-radius:3px;margin-bottom:1.2rem;overflow:hidden">
+        ${timeLeft > 0 ? `<div style="height:5px;background:var(--bg3);border-radius:3px;margin-bottom:1.2rem;overflow:hidden">
           <div id="dd-timebar" style="height:100%;width:100%;background:linear-gradient(90deg,${lvl.color},var(--accent));border-radius:3px;transition:width 0.9s linear"></div>
-        </div>
+        </div>` : '<div style="margin-bottom:1.2rem"></div>'}
 
         <div class="dd-game-layout">
           <div class="dd-pool-wrap">
@@ -1935,7 +2022,7 @@ window.startDDLevel = function(lvlId) {
     attachDDEvents();
 
     // Start timer
-    timerInt = setInterval(() => {
+    if (timeLeft > 0) timerInt = setInterval(() => {
       if (!gameActive) { clearInterval(timerInt); return; }
       timeLeft--;
       const te  = document.getElementById('dd-timer');

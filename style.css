@@ -698,8 +698,8 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 /* ===== MEMORY GAME ===== */
 .memory-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.65rem; max-width: 560px; margin: 0 auto;
+  /* columns controlled by inline style per difficulty */
+  gap: 0.55rem; max-width: 780px; margin: 0 auto;
 }
 
 .memory-card {
@@ -1152,13 +1152,13 @@ main { position: relative; z-index: 1; padding-top: 64px; }
     border-bottom: 1px solid var(--glass-border);
     z-index: 999;
   }
-  .memory-grid { grid-template-columns: repeat(4, 1fr); max-width: 320px; }
+  .memory-grid { max-width: 100%; }
 }
 
 @media (max-width: 560px) {
   .section { padding: 2rem 1rem 4rem; }
   .navbar { padding: 0 1rem; }
-  .memory-grid { grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+  .memory-grid { gap: 0.4rem; }
 }
 
 /* =============================================
