@@ -672,7 +672,7 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 
 /* Game Arena */
 .game-arena { display: none; }
-.game-arena.open { display: block; animation: fadeSlideIn 0.3s ease; }
+.game-arena.open { display: block; animation: fadeSlideIn 0.3s ease; overflow-y: auto; }
 
 .game-wrapper {
   background: var(--glass);
@@ -826,10 +826,14 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 /* Game layout */
 .dd-game-layout {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+  align-items: start; /* each column only as tall as its content */
 }
 .dd-pool-label {
   font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
   letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.6rem;
+}
+.dd-pool-wrap {
+  position: sticky; top: 80px; /* terms column sticks while defs scroll */
 }
 .drag-items-pool { display: flex; flex-direction: column; gap: 0.5rem; }
 .drag-targets    { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -2502,4 +2506,53 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 @media (max-width: 480px) {
   .sq-options-grid { grid-template-columns: 1fr; }
   .debug-round-card { flex-wrap: wrap; gap: 0.5rem; }
+}
+
+/* =============================================
+   TYPING MASTER GAME
+============================================= */
+.tm-mode-btn {
+  display: flex; align-items: center;
+  width: 100%; padding: 0.85rem 1.1rem;
+  background: var(--bg3);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  text-align: left;
+}
+.tm-mode-btn:hover { border-color: var(--mc, var(--accent)); transform: translateX(3px); }
+.tm-mode-btn.tm-mode-active {
+  border-color: var(--mc, var(--accent));
+  background: rgba(168,85,247,0.08);
+  box-shadow: inset 3px 0 0 var(--mc, var(--accent));
+}
+
+.tm-time-btn {
+  flex: 1; padding: 0.5rem;
+  background: var(--bg3);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.tm-time-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tm-time-btn.tm-time-active {
+  background: rgba(168,85,247,0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@keyframes tmCursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@media (max-width: 560px) {
+  #tm-display { font-size: 0.85rem; padding: 0.85rem; }
 }

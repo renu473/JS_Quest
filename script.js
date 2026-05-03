@@ -1472,11 +1472,12 @@ function renderChallenges() { renderPracticeStageMap(); }
    15. GAMES SECTION
 ============================================================ */
 const GAMES_DEF = [
-  { id: 'memory',     icon: '🃏', name: 'Memory Match',   desc: 'Match JS keyword pairs — 3 difficulties, 4 themes!',   tag: 'Memory',     color: '#f7c948' },
-  { id: 'dragdrop',   icon: '🖱️', name: 'DOM Builder',    desc: '5 levels — drag JS concepts to correct definitions!',  tag: 'DOM Events', color: '#4ecdc4' },
-  { id: 'clickspeed', icon: '⚡', name: 'Event Loop',      desc: '3 rounds: click, keydown, mouseover — learn events!',  tag: 'Events',     color: '#ff6b6b' },
-  { id: 'debug',      icon: '🐛', name: 'Bug Hunter',      desc: '3 rounds, 21 bugs — syntax, logic & runtime errors!', tag: 'Debugging',  color: '#a855f7' },
-  { id: 'quizgame',   icon: '🏆', name: 'Knowledge Blitz', desc: '10 questions, lifelines, streak multiplier — fast!',   tag: 'All Topics', color: '#50fa7b' },
+  { id: 'memory',     icon: '🃏', name: 'Memory Match',   desc: 'Match JS keyword pairs — 3 difficulties, 4 themes!',      tag: 'Memory',     color: '#f7c948' },
+  { id: 'dragdrop',   icon: '🖱️', name: 'DOM Builder',    desc: '5 levels — drag JS concepts to correct definitions!',     tag: 'DOM Events', color: '#4ecdc4' },
+  { id: 'clickspeed', icon: '⚡', name: 'Event Loop',      desc: '3 rounds: click, keydown, mouseover — learn events!',     tag: 'Events',     color: '#ff6b6b' },
+  { id: 'debug',      icon: '🐛', name: 'Bug Hunter',      desc: '3 rounds, 21 bugs — syntax, logic & runtime errors!',    tag: 'Debugging',  color: '#a855f7' },
+  { id: 'quizgame',   icon: '🏆', name: 'Knowledge Blitz', desc: '10 questions, lifelines, streak multiplier — fast!',      tag: 'All Topics', color: '#50fa7b' },
+  { id: 'typing',     icon: '⌨️', name: 'Typing Master',   desc: 'JS code type karo — WPM & accuracy improve karo!',       tag: 'Typing',     color: '#4ecdc4' },
 ];
 
 function renderGamesGrid() {
@@ -1507,6 +1508,7 @@ function openGame(id, _fromPop) {
     case 'clickspeed': renderClickSpeed(content); break;
     case 'debug':      renderDebugGame(content); break;
     case 'quizgame':   renderSpeedQuiz(content); break;
+    case 'typing':     renderTypingMaster(content); break;
   }
 }
 
@@ -1991,9 +1993,10 @@ window.startDDLevel = function(lvlId) {
           <div id="dd-timebar" style="height:100%;width:100%;background:linear-gradient(90deg,${lvl.color},var(--accent));border-radius:3px;transition:width 0.9s linear"></div>
         </div>` : '<div style="margin-bottom:1.2rem"></div>'}
 
-        <div class="dd-game-layout">
-          <div class="dd-pool-wrap">
-            <div class="dd-pool-label">📦 Terms — drag these</div>
+        <!-- Terms pool — sticky on left -->
+        <div style="display:flex;gap:1.5rem;align-items:flex-start">
+          <div style="width:180px;flex-shrink:0;position:sticky;top:80px">
+            <div class="dd-pool-label">📦 Terms</div>
             <div class="drag-items-pool" id="drag-pool">
               ${shuffledTerms.map(p => `
                 <div class="drag-item" draggable="true" data-term="${p.term}"
@@ -2003,7 +2006,8 @@ window.startDDLevel = function(lvlId) {
               `).join('')}
             </div>
           </div>
-          <div class="dd-targets-wrap">
+          <!-- Definitions — natural height, page scrolls -->
+          <div style="flex:1;min-width:0">
             <div class="dd-pool-label">🎯 Definitions — drop here</div>
             <div class="drag-targets" id="drag-targets">
               ${pairs.map(p => `

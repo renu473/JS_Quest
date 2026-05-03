@@ -3,9 +3,24 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Master JavaScript with JS Quest! An interactive platform to learn coding through fun challenges and real-time practice. Start your coding journey today.">
-
   <title>JS Quest — Learn JavaScript Interactively</title>
+
+  <!-- SEO: Google search description -->
+  <meta name="description" content="JS Quest — JavaScript seekho interactive lessons, real coding challenges, mini-games aur quizzes ke saath. Beginner-friendly, gamified learning platform. XP earn karo, levels unlock karo, aur JS master karo!"/>
+  <meta name="keywords" content="learn javascript, javascript games, js quiz, javascript practice, coding for beginners, interactive javascript"/>
+  <meta name="author" content="JS Quest"/>
+  <link rel="canonical" href="https://stellar-fenglisu-af667e.netlify.app/"/>
+
+  <!-- Open Graph (WhatsApp, LinkedIn, Facebook preview) -->
+  <meta property="og:title" content="JS Quest — Learn JavaScript Interactively"/>
+  <meta property="og:description" content="JavaScript seekho interactive lessons, real coding challenges, mini-games aur quizzes ke saath. XP earn karo, levels unlock karo!"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://stellar-fenglisu-af667e.netlify.app/"/>
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary"/>
+  <meta name="twitter:title" content="JS Quest — Learn JavaScript Interactively"/>
+  <meta name="twitter:description" content="JavaScript seekho interactive lessons, real coding challenges, mini-games aur quizzes ke saath. XP earn karo, levels unlock karo!"/>
 
   <!-- ✅ Google Analytics — Measurement ID: G-74BCLLSC2R -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-74BCLLSC2R"></script>
@@ -475,7 +490,8 @@
      SCRIPTS
 ============================================================ -->
 <script type="module" src="firebase.js"></script>
-<script src="script.js"></script>
+<script src="script.js" defer></script>
+<script src="games.js" defer></script>
 
 <script type="module">
 import { signUp, logIn, logOut, fetchLeaderboard, sendPasswordReset } from './firebase.js';
