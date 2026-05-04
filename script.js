@@ -73,6 +73,9 @@ let currentSection = 'home';
 let _navStack = [];
 let _handlingPop = false;
 
+// On page load: put a base entry so phone back never exits the app
+window.history.replaceState({ _navBase: true }, '', window.location.pathname);
+
 function _pushNav(entry) {
   _navStack.push(entry);
   window.history.pushState({ _nav: _navStack.length }, '', window.location.pathname);
@@ -80,13 +83,20 @@ function _pushNav(entry) {
 window._pushNav = _pushNav;
 
 // Browser/phone back button handler
-window.addEventListener('popstate', function() {
+window.addEventListener('popstate', function(e) {
   if (_handlingPop) return;
+
+  // If we popped back to the base state — push it again so the app never exits
+  if (e.state && e.state._navBase) {
+    window.history.pushState({ _navBase: true }, '', window.location.pathname);
+  }
+
   _handlingPop = true;
-  setTimeout(function() { _handlingPop = false; }, 50);
+  setTimeout(function() { _handlingPop = false; }, 100);
 
   if (_navStack.length === 0) {
-    _handlingPop = false;
+    // Nothing deep to close — just make sure home is showing
+    _closeInnermostLayer();
     return;
   }
 
@@ -94,9 +104,7 @@ window.addEventListener('popstate', function() {
   const prev = _navStack[_navStack.length - 1];
 
   if (!prev) {
-    // No more history — just close whatever is open innermost
     _closeInnermostLayer();
-    _handlingPop = false;
     return;
   }
 
@@ -117,7 +125,11 @@ function _closeInnermostLayer() {
     closeChallengePanel();
   } else if (stageDiv && !stageDiv.classList.contains('hidden')) {
     renderPracticeStageMap();
+  } else if (currentSection !== 'home') {
+    // If on any section other than home, go back to home
+    goTo('home');
   }
+  // If already on home — do nothing (app stays open)
 }
 
 function _restoreNavEntry(entry) {

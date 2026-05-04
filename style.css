@@ -152,7 +152,7 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 /* ===== SECTIONS ===== */
 .section {
   display: none; min-height: calc(100vh - 64px);
-  padding: 3rem 2rem 5rem;
+  padding: clamp(1.25rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem) 5rem;
   max-width: 1200px; margin: 0 auto;
   animation: fadeSlideIn 0.4s ease;
 }
@@ -672,13 +672,14 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 
 /* Game Arena */
 .game-arena { display: none; }
-.game-arena.open { display: block; animation: fadeSlideIn 0.3s ease; overflow-y: auto; }
+.game-arena.open { display: block; animation: fadeSlideIn 0.3s ease; }
 
 .game-wrapper {
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  padding: 2rem; backdrop-filter: blur(12px);
+  padding: clamp(1rem, 4vw, 2rem);
+  backdrop-filter: blur(12px);
 }
 .game-title {
   font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800;
@@ -698,8 +699,8 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 /* ===== MEMORY GAME ===== */
 .memory-grid {
   display: grid;
-  /* columns controlled by inline style per difficulty */
-  gap: 0.55rem; max-width: 780px; margin: 0 auto;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem; max-width: 560px; margin: 0 auto;
 }
 
 .memory-card {
@@ -826,14 +827,10 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 /* Game layout */
 .dd-game-layout {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
-  align-items: start; /* each column only as tall as its content */
 }
 .dd-pool-label {
   font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
   letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.6rem;
-}
-.dd-pool-wrap {
-  position: sticky; top: 80px; /* terms column sticks while defs scroll */
 }
 .drag-items-pool { display: flex; flex-direction: column; gap: 0.5rem; }
 .drag-targets    { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1156,13 +1153,89 @@ main { position: relative; z-index: 1; padding-top: 64px; }
     border-bottom: 1px solid var(--glass-border);
     z-index: 999;
   }
-  .memory-grid { max-width: 100%; }
+  .memory-grid { grid-template-columns: repeat(4, 1fr); max-width: 320px; }
 }
 
 @media (max-width: 560px) {
-  .section { padding: 2rem 1rem 4rem; }
-  .navbar { padding: 0 1rem; }
+  /* ── Core layout ── */
+  .section { padding: 1.25rem 0.75rem 4rem; }
+  .navbar { padding: 0 0.75rem; }
+  .nav-brand { font-size: 1.2rem; }
+  .xp-badge { font-size: 0.72rem; padding: 0.25rem 0.5rem; }
+  .user-btn span { display: none; } /* hide username text, show only avatar */
+  .section-title { font-size: 1.4rem; }
+  .section-sub { font-size: 0.88rem; }
+
+  /* ── Home dashboard ── */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .stat-card { padding: 1rem 0.75rem; }
+  .progress-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .achievements-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* ── Learn topics ── */
+  .topics-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .topic-card { padding: 1rem; }
+  .concept-panel { padding: 1.25rem 0.75rem; }
+  .concept-icon-big { font-size: 2rem; }
+  .concept-title { font-size: 1.4rem; }
+  .code-block { font-size: 0.78rem; padding: 0.75rem; }
+
+  /* ── Games grid ── */
+  .games-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .game-card { padding: 1.1rem 0.9rem; }
+  .game-card-icon { font-size: 2rem; margin-bottom: 0.6rem; }
+  .game-card-name { font-size: 0.88rem; }
+  .game-card-desc { font-size: 0.75rem; }
+  .game-wrapper { padding: 1.1rem 0.75rem; border-radius: 14px; }
+  .game-title { font-size: 1.2rem; }
+  .game-score-bar { gap: 0.5rem; flex-wrap: wrap; }
+  .score-item { min-width: 55px; }
+
+  /* ── Practice ── */
+  .stage-card { padding: 1rem; }
+  .challenge-panel { padding: 1rem 0.75rem; }
+  .challenge-layout { grid-template-columns: 1fr; }
+  .code-editor { font-size: 0.8rem; min-height: 140px; }
+  .output-panel { font-size: 0.8rem; }
+
+  /* ── Quiz ── */
+  .quiz-setup-grid { grid-template-columns: 1fr 1fr; }
+  .quiz-options-grid { grid-template-columns: 1fr; }
+  .quiz-question { font-size: 0.95rem; }
+  .quiz-option { padding: 0.65rem 0.85rem; font-size: 0.85rem; }
+
+  /* ── Memory match ── */
   .memory-grid { gap: 0.4rem; }
+  .memory-front, .memory-back { font-size: 0.65rem; border-radius: 8px; }
+
+  /* ── Drag & drop ── */
+  .drag-item { font-size: 0.75rem; padding: 0.5rem 0.65rem; }
+  .drop-target { padding: 0.6rem 0.75rem; }
+  .target-label { font-size: 0.8rem; }
+
+  /* ── Debug editor ── */
+  .debug-editor { font-size: 0.78rem; min-height: 120px; }
+
+  /* ── Speed quiz / blitz ── */
+  .sq-options-grid { grid-template-columns: 1fr; }
+  .sq-opt { font-size: 0.82rem; padding: 0.6rem 0.75rem; }
+
+  /* ── Typing master ── */
+  #tm-display { font-size: 0.78rem; padding: 0.85rem 0.75rem; }
+
+  /* ── Leaderboard ── */
+  .lb-wrap { padding: 0 0.25rem; }
+}
+
+/* ── Extra small (360px phones) ── */
+@media (max-width: 380px) {
+  .topics-grid { grid-template-columns: 1fr; }
+  .games-grid { grid-template-columns: 1fr; }
+  .achievements-grid { grid-template-columns: repeat(2, 1fr); }
+  .xp-badge { display: none; } /* too cramped */
+  .score-item { min-width: 44px; }
+  .score-label { font-size: 0.6rem; }
+  .score-value { font-size: 0.88rem; }
 }
 
 /* =============================================
@@ -2404,155 +2477,3 @@ main { position: relative; z-index: 1; padding-top: 64px; }
 .dropdown-item:hover { background: var(--glass-hover); color: var(--text); }
 .dropdown-logout { color: var(--accent2) !important; }
 .dropdown-logout:hover { background: rgba(255,107,107,0.08) !important; }
-/* =============================================
-   DEBUG GAME — UPGRADED Bug Hunter Mode
-============================================= */
-.debug-round-card {
-  display: flex;
-  align-items: center;
-  padding: 1rem 1.25rem;
-  background: var(--bg3);
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-left: 3px solid var(--rc, var(--accent));
-}
-.debug-round-card:hover {
-  transform: translateX(4px);
-  border-color: var(--rc, var(--accent));
-  box-shadow: -4px 0 12px rgba(0,0,0,0.1);
-  background: var(--glass-hover);
-}
-
-/* =============================================
-   SPEED QUIZ GAME — "Knowledge Blitz" Styles
-============================================= */
-.sq-topic-btn {
-  background: var(--bg3);
-  border: 1px solid var(--glass-border);
-  color: var(--text-muted);
-  padding: 0.35rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: inherit;
-}
-.sq-topic-btn:hover { border-color: var(--accent); color: var(--accent); }
-.sq-topic-btn.sq-topic-active {
-  background: rgba(168,85,247,0.12);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.sq-options-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.65rem;
-}
-.sq-opt {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg3);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  color: var(--text);
-  font-size: 0.88rem;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.15s;
-  font-family: inherit;
-  font-weight: 500;
-}
-.sq-opt:hover:not(:disabled) { border-color: var(--accent); background: var(--glass-hover); transform: translateY(-1px); }
-.sq-opt:disabled { cursor: not-allowed; }
-.sq-opt-letter {
-  min-width: 24px; height: 24px;
-  background: var(--bg2);
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.72rem; font-weight: 800;
-  color: var(--text-muted);
-}
-.sq-opt.sq-opt-correct { border-color: var(--accent3); background: rgba(78,205,196,0.1); color: var(--accent3); }
-.sq-opt.sq-opt-correct .sq-opt-letter { background: var(--accent3); color: #000; }
-.sq-opt.sq-opt-wrong { border-color: #ff6b6b; background: rgba(255,107,107,0.08); }
-
-.sq-lifeline-btn {
-  padding: 0.3rem 0.7rem;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid var(--accent);
-  background: rgba(168,85,247,0.1);
-  color: var(--accent);
-  transition: all 0.15s;
-}
-.sq-lifeline-btn:hover:not(:disabled) { background: rgba(168,85,247,0.2); }
-.sq-lifeline-btn.sq-lifeline-used, .sq-lifeline-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  border-color: var(--glass-border);
-  color: var(--text-muted);
-  background: none;
-}
-
-@media (max-width: 480px) {
-  .sq-options-grid { grid-template-columns: 1fr; }
-  .debug-round-card { flex-wrap: wrap; gap: 0.5rem; }
-}
-
-/* =============================================
-   TYPING MASTER GAME
-============================================= */
-.tm-mode-btn {
-  display: flex; align-items: center;
-  width: 100%; padding: 0.85rem 1.1rem;
-  background: var(--bg3);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-  text-align: left;
-}
-.tm-mode-btn:hover { border-color: var(--mc, var(--accent)); transform: translateX(3px); }
-.tm-mode-btn.tm-mode-active {
-  border-color: var(--mc, var(--accent));
-  background: rgba(168,85,247,0.08);
-  box-shadow: inset 3px 0 0 var(--mc, var(--accent));
-}
-
-.tm-time-btn {
-  flex: 1; padding: 0.5rem;
-  background: var(--bg3);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  color: var(--text-muted);
-  font-size: 0.95rem; font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: inherit;
-}
-.tm-time-btn:hover { border-color: var(--accent); color: var(--accent); }
-.tm-time-btn.tm-time-active {
-  background: rgba(168,85,247,0.12);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-@keyframes tmCursor {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-
-@media (max-width: 560px) {
-  #tm-display { font-size: 0.85rem; padding: 0.85rem; }
-}
